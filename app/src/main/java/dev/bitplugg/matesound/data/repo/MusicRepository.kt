@@ -303,28 +303,40 @@ class MusicRepository(
         val transcodings = detailed.media?.transcodings.orEmpty()
         if (transcodings.isEmpty()) throw ScApiException(404, "Track is not streamable")
 
-        val picked = pickTranscoding(transcodings, quality)
-            ?: throw ScApiException(404, "No compatible stream")
-
-        val builder = picked.url.toHttpUrlOrNull()?.newBuilder()
-            ?: throw ScApiException(400, "Bad stream url")
-        builder.addQueryParameter("client_id", clientIds.get())
-        detailed.trackAuthorization?.let { builder.addQueryParameter("track_authorization", it) }
-        val token = prefs.token()
-        if (token != null && !builder.build().queryParameterNames.contains("oauth_token")) {
-            builder.addQueryParameter("oauth_token", token)
+        var lastError: Exception? = null
+        for (picked in transcodings.sortedByDescending { t ->
+            when (t.preset) {
+                "abr_sq" -> 3
+                "aac_160k", "opus_0_160" -> 2
+                "aac_96k", "mp3_128k" -> 1
+                else -> 0
+            }
+        }) {
+            if (picked.url.isBlank()) continue
+            try {
+                val builder = picked.url.toHttpUrlOrNull()?.newBuilder()
+                    ?: continue
+                builder.addQueryParameter("client_id", clientIds.get())
+                detailed.trackAuthorization?.let { builder.addQueryParameter("track_authorization", it) }
+                val token = prefs.token()
+                if (token != null) {
+                    builder.addQueryParameter("oauth_token", token)
+                }
+                val body = api.requestAbsolute(builder.build().toString())
+                val mediaUrl = runCatching {
+                    json.decodeFromString<StreamResponse>(body).url
+                }.getOrNull()
+                if (mediaUrl.isNullOrBlank()) continue
+                val isHls = (picked.format?.protocol == "hls") ||
+                    mediaUrl.contains(".m3u8", ignoreCase = true) ||
+                    body.contains("m3u8", ignoreCase = true)
+                streamCache[track.id] = CachedStream(mediaUrl, isHls, System.currentTimeMillis())
+                return mediaUrl to isHls
+            } catch (e: Exception) {
+                lastError = e
+            }
         }
-        val body = api.requestAbsolute(builder.build().toString())
-        val mediaUrl = runCatching {
-            json.decodeFromString<StreamResponse>(body).url
-        }.getOrElse { throw ScApiException(500, "Unreadable stream response") }
-        if (mediaUrl.isBlank()) throw ScApiException(404, "Empty stream url")
-
-        val isHls = picked.format?.protocol == "hls" ||
-            mediaUrl.contains(".m3u8", ignoreCase = true) ||
-            body.contains("m3u8", ignoreCase = true)
-        streamCache[track.id] = CachedStream(mediaUrl, isHls, System.currentTimeMillis())
-        return mediaUrl to isHls
+        throw lastError ?: ScApiException(404, "No compatible stream")
     }
 
     suspend fun streamUrlById(id: Long, quality: Quality): Pair<String, Boolean> {
