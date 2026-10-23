@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">matesound</string>
+    <string name="app_tagline">Неофициальный клиент SoundCloud</string>
+
+    <string name="nav_home">Главная</string>
+    <string name="nav_search">Поиск</string>
+    <string name="nav_library">Библиотека</string>
+    <string name="nav_settings">Настройки</string>
+
+    <string name="search_hint">Поиск в SoundCloud</string>
+    <string name="tab_tracks">Треки</string>
+    <string name="tab_artists">Артисты</string>
+    <string name="tab_playlists">Плейлисты</string>
+    <string name="empty_search">Введите минимум 2 символа</string>
+    <string name="no_results">Ничего не найдено</string>
+
+    <string name="trends_now">Сейчас в тренде</string>
+    <string name="popular_tracks">Популярные треки</string>
+    <string name="play_all">Играть всё</string>
+    <string name="preview">превью</string>
+
+    <string name="error_network">Не удалось загрузить. Проверьте соединение.</string>
+    <string name="retry">Повторить</string>
+    <string name="dismiss">Скрыть</string>
+
+    <string name="sign_in">Войти через SoundCloud</string>
+    <string name="sign_out">Выйти</string>
+    <string name="signed_in">Вы вошли</string>
+    <string name="sign_in_card_title">Твой SoundCloud в удобном плеере</string>
+    <string name="sign_in_card_text">Войдите, чтобы синхронизировать лайки и плейлисты. Токен сессии хранится только на этом устройстве.</string>
+    <string name="empty_library">Пока нет лайков. Нажмите сердечко на любом треке.</string>
+    <string name="empty_playlists">Плейлистов пока нет</string>
+    <string name="empty_downloads">Нет скачанных треков</string>
+    <string name="empty_history">История прослушивания пуста</string>
+
+    <string name="liked_tracks">Лайки</string>
+    <string name="my_playlists">Плейлисты</string>
+    <string name="downloads">Загрузки</string>
+    <string name="history">История</string>
+
+    <string name="settings_account">Аккаунт</string>
+    <string name="settings_playback">Воспроизведение</string>
+    <string name="settings_quality">Качество звука</string>
+    <string name="quality_high">Высокое (160 кбит/с)</string>
+    <string name="quality_low">Низкое (96 кбит/с)</string>
+    <string name="settings_appearance">Оформление</string>
+    <string name="theme">Тема</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_system">Системная</string>
+    <string name="settings_language">Язык</string>
+    <string name="lang_system">Системный</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_english">Английский</string>
+    <string name="settings_storage">Хранилище</string>
+    <string name="wifi_only">Скачивать только по Wi-Fi</string>
+    <string name="clear_history">Очистить историю</string>
+    <string name="clear_likes">Очистить локальные лайки</string>
+    <string name="settings_advanced">Дополнительно</string>
+    <string name="refresh_client_id">Обновить API client id</string>
+    <string name="settings_about">О приложении</string>
+    <string name="version">Версия %1$s</string>
+    <string name="source_code">Исходный код</string>
+
+    <string name="manual_token">Ввести токен вручную</string>
+    <string name="manual_token_hint">Вставьте oauth_token из веб-сессии SoundCloud</string>
+    <string name="token_hint">oauth_token</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+
+    <string name="player_now_playing">Сейчас играет</string>
+    <string name="player_queue">Очередь</string>
+    <string name="player_speed">Скорость</string>
+    <string name="player_sleep">Таймер сна</string>
+    <string name="player_equalizer">Эквалайзер</string>
+    <string name="now_playing_unknown">Неизвестный трек</string>
+    <string name="sleep_off">Выкл</string>
+    <string name="eq_hint">Применяется к текущей аудиосессии</string>
+    <string name="eq_flat">Ровный</string>
+    <string name="eq_bass">Бас</string>
+    <string name="eq_vocal">Вокал</string>
+    <string name="eq_electronic">Электроника</string>
+    <string name="eq_rock">Рок</string>
+
+    <string name="download">Скачать</string>
+    <string name="downloading">Загрузка</string>
+    <string name="download_failed">Не удалось скачать</string>
+    <string name="delete_download">Удалить загрузку</string>
+
+    <string name="login_title">Вход</string>
+    <string name="login_hint">Войдите в аккаунт SoundCloud ниже. Приложение читает токен сессии со страницы и хранит его только на этом устройстве.</string>
+    <string name="login_waiting">Ожидание входа…</string>
+    <string name="login_check">Я вошёл</string>
+    <string name="login_saving">Сохраняем сессию…</string>
+    <string name="close">Закрыть</string>
+</resources>
