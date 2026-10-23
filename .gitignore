@@ -13,3 +13,6 @@ local.properties
 *.jks
 *.keystore
 /app/release/
+
+# Public throwaway signing key used by CI (needed for stable OTA updates)
+!keystore/matesound.jks
