@@ -54,7 +54,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: matesound-release-unsigned
+          name: matesound-release
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
@@ -70,7 +70,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: matesound-release-unsigned
+          name: matesound-release
           path: dist/release
 
       - name: Publish GitHub release
@@ -80,7 +80,7 @@ jobs:
           cd dist
           gh release create "${GITHUB_REF_NAME}" \
             debug/app-debug.apk \
-            release/app-release-unsigned.apk \
+            release/app-release.apk \
             --repo "${GITHUB_REPOSITORY}" \
             --title "matesound ${GITHUB_REF_NAME}" \
-            --notes "The debug APK is signed with the Android debug key and can be installed directly (enable installation from unknown sources). The release APK is unsigned — sign it locally with apksigner before installing."
+            --notes "Both APKs are signed with the same stable key. Install either one manually (enable installation from unknown sources); future versions can then be installed in-app from Settings → Updates."

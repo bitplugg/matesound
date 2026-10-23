@@ -25,12 +25,25 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        // Throwaway app signing key committed on purpose: every CI run must
+        // produce APKs with the same signature, otherwise OTA updates can not
+        // be installed over the previous version.
+        create("matesound") {
+            storeFile = rootProject.file("keystore/matesound.jks")
+            storePassword = "matesound"
+            keyAlias = "matesound"
+            keyPassword = "matesound"
+        }
+    }
+
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("matesound")
             versionNameSuffix = "-debug"
         }
         release {
+            signingConfig = signingConfigs.getByName("matesound")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
