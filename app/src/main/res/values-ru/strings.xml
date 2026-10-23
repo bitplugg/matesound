@@ -82,7 +82,7 @@
     <string name="crash_log">Лог последнего сбоя</string>
 
     <string name="manual_token">Ввести токен вручную</string>
-    <string name="manual_token_hint">Вставьте oauth_token из веб-сессии SoundCloud</string>
+    <string name="manual_token_hint">Браузер на ПК → soundcloud.com → DevTools → Application → Cookies → oauth_token</string>
     <string name="token_hint">oauth_token</string>
     <string name="save">Сохранить</string>
     <string name="cancel">Отмена</string>
@@ -107,9 +107,10 @@
     <string name="delete_download">Удалить загрузку</string>
 
     <string name="login_title">Вход</string>
-    <string name="login_hint">Войдите в аккаунт SoundCloud ниже. Приложение читает токен сессии со страницы и хранит его только на этом устройстве.</string>
+    <string name="login_hint">Войдите в аккаунт SoundCloud ниже. Если вход через Google/Apple в этом встроенном браузере заблокирован, используйте почту и пароль или вставьте cookie oauth_token вручную в Настройках.</string>
     <string name="login_waiting">Ожидание входа…</string>
     <string name="login_check">Я вошёл</string>
-    <string name="login_saving">Сохраняем сессию…</string>
+    <string name="login_saving">Проверяем сессию…</string>
+    <string name="login_rejected">SoundCloud отклонил эту сессию. Войдите ещё раз или вставьте cookie oauth_token вручную.</string>
     <string name="close">Закрыть</string>
 </resources>

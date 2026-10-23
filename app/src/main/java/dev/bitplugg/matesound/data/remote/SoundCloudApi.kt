@@ -55,9 +55,6 @@ class SoundCloudApi(
         }
         val token = prefs.token()
         if (!hasClientId) builder.addQueryParameter("client_id", clientIds.get())
-        if (token != null && builder.build().queryParameter("oauth_token") == null) {
-            builder.addQueryParameter("oauth_token", token)
-        }
         val response = perform("GET", builder.build())
         response.use {
             if (it.code == 401 || it.code == 403) throw AuthRequiredException()
@@ -100,9 +97,6 @@ class SoundCloudApi(
         val finalUrl = url.newBuilder().apply {
             if (url.queryParameter("client_id") == null) {
                 addQueryParameter("client_id", clientIds.get())
-            }
-            if (token != null && url.queryParameter("oauth_token") == null) {
-                addQueryParameter("oauth_token", token)
             }
         }.build()
 

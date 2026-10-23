@@ -82,7 +82,7 @@
     <string name="crash_log">Last crash log</string>
 
     <string name="manual_token">Enter token manually</string>
-    <string name="manual_token_hint">Paste oauth_token from the SoundCloud web session</string>
+    <string name="manual_token_hint">Desktop browser → soundcloud.com → DevTools → Application → Cookies → oauth_token</string>
     <string name="token_hint">oauth_token</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
@@ -107,9 +107,10 @@
     <string name="delete_download">Delete download</string>
 
     <string name="login_title">Sign in</string>
-    <string name="login_hint">Log in to your SoundCloud account below. The app reads the session token from the web page and keeps it only on this device.</string>
+    <string name="login_hint">Log in to your SoundCloud account below. If Google/Apple sign-in is blocked in this embedded browser, use your email and password, or paste the oauth_token cookie manually from Settings.</string>
     <string name="login_waiting">Waiting for sign in…</string>
     <string name="login_check">I\'m signed in</string>
-    <string name="login_saving">Saving session…</string>
+    <string name="login_saving">Verifying session…</string>
+    <string name="login_rejected">SoundCloud rejected this session. Sign in again, or paste the oauth_token cookie manually.</string>
     <string name="close">Close</string>
 </resources>

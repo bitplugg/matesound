@@ -40,9 +40,12 @@ import dev.bitplugg.matesound.MateSoundApp
 import dev.bitplugg.matesound.R
 import dev.bitplugg.matesound.data.auth.AuthUrls
 import dev.bitplugg.matesound.data.model.ThemeMode
+import dev.bitplugg.matesound.data.remote.AuthRequiredException
+import dev.bitplugg.matesound.data.remote.ScApiException
 import dev.bitplugg.matesound.ui.theme.MateSoundTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 class AuthWebViewActivity : AppCompatActivity() {
 
@@ -63,9 +66,39 @@ class AuthWebViewActivity : AppCompatActivity() {
                 finished = true
                 status = R.string.login_saving
                 scope.launch {
-                    runCatching { container.auth.saveToken(token) }
-                    setResult(RESULT_OK)
-                    finish()
+                    container.auth.saveToken(token)
+                    val check = runCatching {
+                        withTimeout(20_000L) { container.repository.me() }
+                    }
+                    val failure = check.exceptionOrNull()
+                    val rejected = failure is AuthRequiredException ||
+                        (failure is ScApiException && failure.code in 401..403)
+                    if (rejected) {
+                        // Do not keep a token the API refuses, otherwise every
+                        // screen shows a misleading "signed in" state.
+                        container.auth.logout()
+                        status = R.string.login_rejected
+                        finished = false
+                    } else {
+                        CookieManager.getInstance().flush()
+                        setResult(RESULT_OK)
+                        finish()
+                    }
+                }
+            }
+
+            fun checkCookies() {
+                if (finished) return
+                val urls = listOf(
+                    "https://soundcloud.com",
+                    "https://m.soundcloud.com",
+                    "https://secure.soundcloud.com",
+                )
+                for (url in urls) {
+                    val cookie = CookieManager.getInstance().getCookie(url) ?: continue
+                    val token = AuthUrls.tokenFromCookie(cookie) ?: continue
+                    handleToken(token)
+                    return
                 }
             }
 
@@ -75,6 +108,7 @@ class AuthWebViewActivity : AppCompatActivity() {
                         statusRes = status,
                         onClose = { finish() },
                         onCheck = {
+                            checkCookies()
                             webView?.evaluateJavascript(AuthUrls.TOKEN_PROBE_JS) { result ->
                                 handleToken(result)
                             }
@@ -82,6 +116,7 @@ class AuthWebViewActivity : AppCompatActivity() {
                         onWebViewReady = { view ->
                             webView = view
                         },
+                        onPageFinished = { checkCookies() },
                         onTokenFromUrl = { url ->
                             AuthUrls.tokenFromUrl(url)?.let { handleToken(it) }
                         },
@@ -93,6 +128,7 @@ class AuthWebViewActivity : AppCompatActivity() {
                 while (!finished) {
                     delay(1_500L)
                     val view = webView ?: continue
+                    checkCookies()
                     view.evaluateJavascript(AuthUrls.TOKEN_PROBE_JS) { result ->
                         handleToken(result)
                     }
@@ -109,6 +145,7 @@ private fun LoginContent(
     onClose: () -> Unit,
     onCheck: () -> Unit,
     onWebViewReady: (WebView) -> Unit,
+    onPageFinished: () -> Unit,
     onTokenFromUrl: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -145,6 +182,11 @@ private fun LoginContent(
                             ): Boolean {
                                 onTokenFromUrl(request.url.toString())
                                 return false
+                            }
+
+                            override fun onPageFinished(view: WebView, url: String?) {
+                                super.onPageFinished(view, url)
+                                onPageFinished()
                             }
                         }
                         loadUrl(AuthUrls.loginPage())
