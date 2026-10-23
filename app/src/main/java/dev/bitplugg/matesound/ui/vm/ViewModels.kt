@@ -261,23 +261,15 @@ class LibraryViewModel(
             val likes = runCatching { repository.myLikes() }
             val playlists = runCatching { repository.myPlaylists() }
             runCatching { repository.me() }
-            if (likes.isFailure && playlists.isFailure) {
-                remote.update {
-                    it.copy(
-                        loading = false,
-                        error = likes.exceptionOrNull()?.message ?: "failed",
-                    )
-                }
-            } else {
-                remote.update {
-                    it.copy(
-                        loading = false,
-                        loaded = true,
-                        likes = likes.getOrDefault(it.likes),
-                        playlists = playlists.getOrDefault(it.playlists),
-                        error = null,
-                    )
-                }
+            val failure = likes.exceptionOrNull() ?: playlists.exceptionOrNull()
+            remote.update { current ->
+                current.copy(
+                    loading = false,
+                    loaded = current.loaded || likes.isSuccess || playlists.isSuccess,
+                    likes = likes.getOrElse { current.likes },
+                    playlists = playlists.getOrElse { current.playlists },
+                    error = failure?.message,
+                )
             }
         }
     }
@@ -321,6 +313,9 @@ class SettingsViewModel(
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { prefs.setThemeMode(mode) }
 
     fun setLanguage(language: AppLanguage) = viewModelScope.launch { prefs.setLanguage(language) }
+
+    fun setDynamicColor(enabled: Boolean) =
+        viewModelScope.launch { prefs.setDynamicColor(enabled) }
 
     fun setQuality(quality: Quality) = viewModelScope.launch { prefs.setQuality(quality) }
 

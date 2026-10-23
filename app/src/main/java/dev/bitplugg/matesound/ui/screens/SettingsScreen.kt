@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,14 +48,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bitplugg.matesound.BuildConfig
+import dev.bitplugg.matesound.MateSoundApp
 import dev.bitplugg.matesound.R
 import dev.bitplugg.matesound.data.model.AppLanguage
 import dev.bitplugg.matesound.data.model.EqualizerPreset
 import dev.bitplugg.matesound.data.model.Quality
 import dev.bitplugg.matesound.data.model.ThemeMode
 import dev.bitplugg.matesound.ui.AuthWebViewActivity
+import dev.bitplugg.matesound.ui.LocalAppContainer
+import dev.bitplugg.matesound.ui.UpdateCard
 import dev.bitplugg.matesound.ui.appViewModel
 import dev.bitplugg.matesound.ui.vm.SettingsViewModel
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,11 +70,15 @@ fun SettingsScreen(
         SettingsViewModel(container.prefs, container.clientIds, container.library, container.auth)
     }
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val container = LocalAppContainer.current
+    val update by container.updates.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val signInLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { _ -> }
     var showTokenDialog by remember { mutableStateOf(false) }
+    var crashText by remember { mutableStateOf<String?>(null) }
+    val crashFile = remember { File(context.filesDir, MateSoundApp.CRASH_FILE) }
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -163,6 +172,15 @@ fun SettingsScreen(
             )
         }
         item {
+            SettingsSwitchRow(
+                title = stringResource(R.string.material_you),
+                subtitle = stringResource(R.string.material_you_hint),
+                checked = settings.dynamicColor,
+                onCheckedChange = vm::setDynamicColor,
+                icon = Icons.Rounded.Palette,
+            )
+        }
+        item {
             SettingsOptionsGroup(
                 title = stringResource(R.string.settings_language),
                 options = listOf(
@@ -204,6 +222,50 @@ fun SettingsScreen(
                 subtitle = settings.clientId,
                 onClick = vm::refreshClientId,
             )
+        }
+        if (crashFile.exists()) {
+            item {
+                SettingsClickableRow(
+                    title = stringResource(R.string.crash_log),
+                    subtitle = crashFile.name,
+                    onClick = {
+                        crashText = runCatching { crashFile.readText() }.getOrNull()
+                    },
+                )
+            }
+        }
+
+        item { SettingsSection(stringResource(R.string.settings_updates)) }
+        item {
+            val subtitle = when {
+                update.checking -> stringResource(R.string.update_checking)
+                update.info != null -> stringResource(
+                    R.string.update_available,
+                    update.info?.version.orEmpty(),
+                )
+                update.upToDate -> stringResource(R.string.update_up_to_date)
+                update.error != null -> stringResource(
+                    R.string.update_error,
+                    update.error.orEmpty(),
+                )
+                else -> stringResource(R.string.update_current, BuildConfig.VERSION_NAME)
+            }
+            SettingsClickableRow(
+                title = stringResource(R.string.check_updates),
+                subtitle = subtitle,
+                trailingIcon = Icons.Rounded.SystemUpdate,
+                onClick = { container.updates.check(userTriggered = true) },
+            )
+        }
+        if (update.info != null) {
+            item {
+                UpdateCard(
+                    state = update,
+                    onDownload = { container.updates.download() },
+                    onInstall = { container.updates.install() },
+                    onOpenRelease = { container.updates.openReleasePage() },
+                )
+            }
         }
 
         item { SettingsSection(stringResource(R.string.settings_about)) }
@@ -257,6 +319,24 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showTokenDialog = false }) {
                     Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    crashText?.let { text ->
+        AlertDialog(
+            onDismissRequest = { crashText = null },
+            title = { Text(stringResource(R.string.crash_log)) },
+            text = {
+                Text(
+                    text = text.take(8_000),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { crashText = null }) {
+                    Text(stringResource(R.string.close))
                 }
             },
         )

@@ -49,6 +49,8 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_light">Light</string>
     <string name="theme_system">System</string>
+    <string name="material_you">Material You</string>
+    <string name="material_you_hint">Use wallpaper colors (Android 12+)</string>
     <string name="settings_language">Language</string>
     <string name="lang_system">System</string>
     <string name="lang_russian">Russian</string>
@@ -62,6 +64,22 @@
     <string name="settings_about">About</string>
     <string name="version">Version %1$s</string>
     <string name="source_code">Source code</string>
+
+    <string name="settings_updates">Updates</string>
+    <string name="check_updates">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available">matesound %1$s is available.</string>
+    <string name="update_up_to_date">You are on the latest version</string>
+    <string name="update_current">Current version %1$s</string>
+    <string name="update_download">Download update</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_install">Install</string>
+    <string name="update_later">Later</string>
+    <string name="update_open_release">Open release page</string>
+    <string name="update_error">Update error: %1$s</string>
+    <string name="update_unknown_sources">Allow matesound to install unknown apps, then tap Install again.</string>
+    <string name="crash_log">Last crash log</string>
 
     <string name="manual_token">Enter token manually</string>
     <string name="manual_token_hint">Paste oauth_token from the SoundCloud web session</string>

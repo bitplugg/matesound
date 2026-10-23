@@ -23,6 +23,7 @@ data class AppSettings(
     val clientId: String? = null,
     val quality: Quality = Quality.HIGH,
     val themeMode: ThemeMode = ThemeMode.DARK,
+    val dynamicColor: Boolean = true,
     val language: AppLanguage = AppLanguage.SYSTEM,
     val equalizerEnabled: Boolean = false,
     val equalizerPreset: EqualizerPreset = EqualizerPreset.FLAT,
@@ -87,6 +88,10 @@ class Prefs(context: Context) {
         store.edit { it[Keys.LANGUAGE] = language.key }
     }
 
+    suspend fun setDynamicColor(enabled: Boolean) {
+        store.edit { it[Keys.DYNAMIC_COLOR] = enabled }
+    }
+
     suspend fun setEqualizerEnabled(enabled: Boolean) {
         store.edit { it[Keys.EQ_ENABLED] = enabled }
     }
@@ -108,6 +113,7 @@ class Prefs(context: Context) {
         clientId = this[Keys.CLIENT_ID]?.takeIf { it.isNotBlank() },
         quality = Quality.from(this[Keys.QUALITY]),
         themeMode = ThemeMode.from(this[Keys.THEME]),
+        dynamicColor = this[Keys.DYNAMIC_COLOR] ?: true,
         language = AppLanguage.from(this[Keys.LANGUAGE]),
         equalizerEnabled = this[Keys.EQ_ENABLED] ?: false,
         equalizerPreset = EqualizerPreset.from(this[Keys.EQ_PRESET]),
@@ -123,6 +129,7 @@ class Prefs(context: Context) {
         val CLIENT_ID = stringPreferencesKey("client_id")
         val QUALITY = stringPreferencesKey("quality")
         val THEME = stringPreferencesKey("theme")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val LANGUAGE = stringPreferencesKey("language")
         val EQ_ENABLED = booleanPreferencesKey("eq_enabled")
         val EQ_PRESET = stringPreferencesKey("eq_preset")

@@ -108,6 +108,7 @@ class SoundCloudApi(
             .header("User-Agent", USER_AGENT)
             .header("Accept", "application/json")
             .header("Accept-Language", "en")
+            .apply { if (token != null) header("Authorization", "OAuth $token") }
             .method(method, if (method == "GET" || method == "DELETE") null else EMPTY_BODY)
             .build()
 

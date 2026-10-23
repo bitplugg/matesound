@@ -5,6 +5,8 @@ import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -32,6 +34,7 @@ class PlaybackService : MediaSessionService() {
     private val equalizer = EqualizerController()
     private var settings = AppSettings()
     private var quality = Quality.HIGH
+    private var consecutiveErrors = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -55,7 +58,26 @@ class PlaybackService : MediaSessionService() {
                 true,
             )
             .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
+
+        player.addListener(object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                consecutiveErrors++
+                // Do not let one unreachable track kill the whole queue.
+                if (consecutiveErrors <= MAX_AUTO_SKIPS &&
+                    player.currentMediaItemIndex < player.mediaItemCount - 1
+                ) {
+                    player.seekToNextMediaItem()
+                    player.prepare()
+                    player.play()
+                }
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) consecutiveErrors = 0
+            }
+        })
 
         player.addAnalyticsListener(object : AnalyticsListener {
             override fun onAudioSessionIdChanged(
@@ -107,5 +129,9 @@ class PlaybackService : MediaSessionService() {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+    }
+
+    private companion object {
+        const val MAX_AUTO_SKIPS = 3
     }
 }

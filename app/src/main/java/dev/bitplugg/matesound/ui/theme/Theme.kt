@@ -3,9 +3,13 @@ package dev.bitplugg.matesound.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.os.Build
 import dev.bitplugg.matesound.data.model.ThemeMode
 
 private val Orange = Color(0xFFFF5500)
@@ -54,6 +58,7 @@ val MatesoundLightColors = lightColorScheme(
 @Composable
 fun MateSoundTheme(
     themeMode: ThemeMode,
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val dark = when (themeMode) {
@@ -61,8 +66,16 @@ fun MateSoundTheme(
         ThemeMode.LIGHT -> false
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
+    val context = LocalContext.current
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        dark -> MatesoundDarkColors
+        else -> MatesoundLightColors
+    }
     MaterialTheme(
-        colorScheme = if (dark) MatesoundDarkColors else MatesoundLightColors,
+        colorScheme = colorScheme,
         content = content,
     )
 }

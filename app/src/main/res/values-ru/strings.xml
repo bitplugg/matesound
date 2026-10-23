@@ -49,6 +49,8 @@
     <string name="theme_dark">Тёмная</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_system">Системная</string>
+    <string name="material_you">Material You</string>
+    <string name="material_you_hint">Цвета обоев (Android 12+)</string>
     <string name="settings_language">Язык</string>
     <string name="lang_system">Системный</string>
     <string name="lang_russian">Русский</string>
@@ -62,6 +64,22 @@
     <string name="settings_about">О приложении</string>
     <string name="version">Версия %1$s</string>
     <string name="source_code">Исходный код</string>
+
+    <string name="settings_updates">Обновления</string>
+    <string name="check_updates">Проверить обновления</string>
+    <string name="update_checking">Проверяем…</string>
+    <string name="update_available_title">Доступно обновление</string>
+    <string name="update_available">Доступен matesound %1$s.</string>
+    <string name="update_up_to_date">У вас последняя версия</string>
+    <string name="update_current">Текущая версия %1$s</string>
+    <string name="update_download">Скачать обновление</string>
+    <string name="update_downloading">Загрузка… %1$d%%</string>
+    <string name="update_install">Установить</string>
+    <string name="update_later">Позже</string>
+    <string name="update_open_release">Открыть страницу релиза</string>
+    <string name="update_error">Ошибка обновления: %1$s</string>
+    <string name="update_unknown_sources">Разрешите matesound установку неизвестных приложений и нажмите «Установить» ещё раз.</string>
+    <string name="crash_log">Лог последнего сбоя</string>
 
     <string name="manual_token">Ввести токен вручную</string>
     <string name="manual_token_hint">Вставьте oauth_token из веб-сессии SoundCloud</string>

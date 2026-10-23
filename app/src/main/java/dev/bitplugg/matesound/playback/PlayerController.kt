@@ -14,6 +14,7 @@ import dev.bitplugg.matesound.data.local.LibraryStore
 import dev.bitplugg.matesound.data.local.Prefs
 import dev.bitplugg.matesound.data.model.ScTrack
 import dev.bitplugg.matesound.data.repo.MusicRepository
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -59,7 +60,11 @@ class PlayerController(
     private val library: LibraryStore,
     private val prefs: Prefs,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error ->
+            _state.update { it.copy(error = error.message ?: "player error") }
+        },
+    )
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
@@ -103,12 +108,14 @@ class PlayerController(
         override fun onEvents(player: Player, events: Player.Events) = sync()
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            mediaItem?.mediaId?.toLongOrNull()?.let { id ->
-                knownTracks[id]?.let { track ->
-                    scope.launch { library.addHistory(track) }
+            runCatching {
+                mediaItem?.mediaId?.toLongOrNull()?.let { id ->
+                    knownTracks[id]?.let { track ->
+                        scope.launch { runCatching { library.addHistory(track) } }
+                    }
                 }
+                sync()
             }
-            sync()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -230,17 +237,23 @@ class PlayerController(
 
     private fun syncPosition() {
         val mediaController = controller ?: return
-        _state.update {
-            it.copy(
-                positionMs = mediaController.currentPosition.coerceAtLeast(0L),
-                durationMs = mediaController.duration.coerceAtLeast(0L),
-                isPlaying = mediaController.isPlaying,
-            )
+        runCatching {
+            _state.update {
+                it.copy(
+                    positionMs = mediaController.currentPosition.coerceAtLeast(0L),
+                    durationMs = mediaController.duration.coerceAtLeast(0L),
+                    isPlaying = mediaController.isPlaying,
+                )
+            }
         }
     }
 
     private fun sync() {
         val mediaController = controller ?: return
+        runCatching { syncFromController(mediaController) }
+    }
+
+    private fun syncFromController(mediaController: MediaController) {
         val mediaItem = mediaController.currentMediaItem
         val metadata = mediaItem?.mediaMetadata
         val queue = (0 until mediaController.mediaItemCount).map { index ->

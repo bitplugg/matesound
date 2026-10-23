@@ -22,6 +22,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -63,9 +64,15 @@ fun MateSoundRoot() {
     val container = LocalAppContainer.current
     val settings by container.prefs.settings.collectAsStateWithLifecycle(initialValue = AppSettings())
     val playerState by container.player.state.collectAsStateWithLifecycle()
+    val updateState by container.updates.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    MateSoundTheme(themeMode = settings.themeMode) {
+    var updateDismissed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        container.updates.check()
+    }
+
+    MateSoundTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route
@@ -160,6 +167,16 @@ fun MateSoundRoot() {
             ) {
                 PlayerScreen(onClose = { playerOpen = false })
             }
+        }
+
+        if (updateState.info != null && !updateDismissed) {
+            UpdateDialog(
+                state = updateState,
+                onDownload = { container.updates.download() },
+                onInstall = { container.updates.install() },
+                onOpenRelease = { container.updates.openReleasePage() },
+                onDismiss = { updateDismissed = true },
+            )
         }
     }
 }

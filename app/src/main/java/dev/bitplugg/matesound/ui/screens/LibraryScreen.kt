@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,6 +75,12 @@ fun LibraryScreen(
             title = { Text(stringResource(R.string.nav_library)) },
             actions = {
                 if (state.loggedIn) {
+                    IconButton(onClick = vm::refresh) {
+                        Icon(
+                            Icons.Rounded.Refresh,
+                            contentDescription = stringResource(R.string.retry),
+                        )
+                    }
                     IconButton(onClick = { vm.logout() }) {
                         Icon(
                             Icons.AutoMirrored.Rounded.Logout,
@@ -138,13 +145,23 @@ fun LibraryScreen(
                         }
                     }
                 }
-                tab == 1 -> if (state.playlists.isEmpty()) {
-                    EmptyState(
+                tab == 1 -> when {
+                    state.loading && state.playlists.isEmpty() -> LoadingBox()
+                    state.playlists.isEmpty() -> EmptyState(
                         icon = Icons.Rounded.LibraryMusic,
                         title = stringResource(R.string.empty_playlists),
+                        subtitle = state.error,
+                        action = if (state.error != null) {
+                            {
+                                Button(onClick = vm::refresh) {
+                                    Text(stringResource(R.string.retry))
+                                }
+                            }
+                        } else {
+                            null
+                        },
                     )
-                } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
+                    else -> LazyColumn(Modifier.fillMaxSize()) {
                         items(state.playlists, key = { it.id }) { playlist ->
                             PlaylistRow(
                                 playlist = playlist,

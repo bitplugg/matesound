@@ -18,6 +18,7 @@ import dev.bitplugg.matesound.data.remote.SoundCloudApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -120,8 +121,21 @@ class MusicRepository(
         return parseTrackCollection(raw)
     }
 
-    suspend fun myPlaylists(limit: Int = 50): List<ScPlaylist> =
-        api.get<PlaylistPage>("/me/playlists", mapOf("limit" to "$limit")).collection
+    suspend fun myPlaylists(limit: Int = 50): List<ScPlaylist> {
+        val primary = runCatching {
+            parsePlaylistCollection(
+                api.request("/me/playlists", mapOf("limit" to "$limit")),
+            )
+        }
+        if (primary.isSuccess) return primary.getOrThrow()
+        // Some accounts/API revisions only expose playlists through the user resource.
+        val userId = prefs.current().userId
+            ?: runCatching { me().id }.getOrNull()
+            ?: throw (primary.exceptionOrNull() ?: ScApiException(404, "No playlists"))
+        return parsePlaylistCollection(
+            api.request("/users/$userId/playlists", mapOf("limit" to "$limit")),
+        )
+    }
 
     suspend fun like(track: ScTrack, liked: Boolean): Boolean {
         val method = if (liked) "POST" else "DELETE"
@@ -196,6 +210,23 @@ class MusicRepository(
     }
 
     // ---------------------------------------------------------------- helpers
+
+    private fun parsePlaylistCollection(raw: String): List<ScPlaylist> {
+        val root = runCatching { json.parseToJsonElement(raw) }.getOrNull() ?: return emptyList()
+        val array = when (root) {
+            is JsonArray -> root
+            is JsonObject -> root["collection"]?.jsonArray ?: return emptyList()
+            else -> return emptyList()
+        }
+        return array.mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            val kind = obj["kind"]?.jsonPrimitive?.contentOrNull
+            if (kind != null && kind != "playlist" && kind != "album") return@mapNotNull null
+            runCatching {
+                json.decodeFromJsonElement(ScPlaylist.serializer(), obj)
+            }.getOrNull()
+        }
+    }
 
     private fun parseTrackCollection(raw: String): List<ScTrack> {
         val root = runCatching { json.parseToJsonElement(raw).jsonObject }.getOrNull() ?: return emptyList()
