@@ -31,6 +31,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="soundcloud.com" />
+                <data android:scheme="https" android:host="www.soundcloud.com" />
+                <data android:scheme="https" android:host="m.soundcloud.com" />
+                <data android:scheme="http" android:host="soundcloud.com" />
+                <data android:scheme="http" android:host="www.soundcloud.com" />
+                <data android:scheme="http" android:host="m.soundcloud.com" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <activity
@@ -38,6 +54,20 @@
             android:exported="false"
             android:theme="@style/Theme.MateSound"
             android:windowSoftInputMode="adjustResize" />
+
+        <receiver
+            android:name=".widget.PlayerWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dev.bitplugg.matesound.ACTION_WIDGET_PLAY" />
+                <action android:name="dev.bitplugg.matesound.ACTION_WIDGET_NEXT" />
+                <action android:name="dev.bitplugg.matesound.ACTION_WIDGET_PREV" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
 
         <service
             android:name=".playback.PlaybackService"

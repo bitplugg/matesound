@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -39,6 +40,25 @@ class SoundCloudApi(
             if (it.code == 401 || it.code == 403) throw AuthRequiredException()
             if (!it.isSuccessful) throw ScApiException(it.code, "HTTP ${it.code}", it.body?.string())
             it.code
+        }
+    }
+
+    /** Sends a JSON body (used by the playlist/follow endpoints). */
+    suspend fun sendJson(
+        method: String,
+        path: String,
+        body: String,
+        params: Map<String, String> = emptyMap(),
+    ): String = withContext(Dispatchers.IO) {
+        val response = perform(
+            method,
+            apiUrl(path, params),
+            body.toRequestBody(JSON_MEDIA_TYPE),
+        )
+        response.use {
+            if (it.code == 401 || it.code == 403) throw AuthRequiredException()
+            if (!it.isSuccessful) throw ScApiException(it.code, "HTTP ${it.code}", it.body?.string())
+            it.body?.string().orEmpty()
         }
     }
 
@@ -92,7 +112,11 @@ class SoundCloudApi(
         return builder.build()
     }
 
-    private suspend fun perform(method: String, url: HttpUrl): okhttp3.Response {
+    private suspend fun perform(
+        method: String,
+        url: HttpUrl,
+        body: okhttp3.RequestBody? = null,
+    ): okhttp3.Response {
         val token = prefs.token()
         val finalUrl = url.newBuilder().apply {
             if (url.queryParameter("client_id") == null) {
@@ -106,7 +130,7 @@ class SoundCloudApi(
             .header("Accept", "application/json")
             .header("Accept-Language", "en")
             .apply { if (token != null) header("Authorization", "OAuth $token") }
-            .method(method, if (method == "GET" || method == "DELETE") null else EMPTY_BODY)
+            .method(method, body ?: if (method == "GET" || method == "DELETE") null else EMPTY_BODY)
             .build()
 
         val call = http.newCall(request)
@@ -124,5 +148,6 @@ class SoundCloudApi(
             "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
         private val EMPTY_BODY = ByteArray(0).toRequestBody(null, 0, 0)
+        private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 }

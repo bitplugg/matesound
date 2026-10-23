@@ -29,6 +29,10 @@ data class AppSettings(
     val equalizerPreset: EqualizerPreset = EqualizerPreset.FLAT,
     val playbackSpeed: Float = 1f,
     val downloadWifiOnly: Boolean = true,
+    val streamWifiOnly: Boolean = false,
+    val offlineMode: Boolean = false,
+    val autoDownloadLikes: Boolean = false,
+    val autoplayRelated: Boolean = true,
     val userId: Long? = null,
     val userName: String? = null,
     val userAvatar: String? = null,
@@ -53,7 +57,7 @@ class Prefs(context: Context) {
                 prefs.remove(Keys.USER_NAME)
                 prefs.remove(Keys.USER_AVATAR)
             } else {
-                prefs[Keys.TOKEN] = token
+                prefs[Keys.TOKEN] = TokenCipher.encrypt(token)
             }
         }
     }
@@ -108,8 +112,26 @@ class Prefs(context: Context) {
         store.edit { it[Keys.WIFI_ONLY] = enabled }
     }
 
+    suspend fun setStreamWifiOnly(enabled: Boolean) {
+        store.edit { it[Keys.STREAM_WIFI_ONLY] = enabled }
+    }
+
+    suspend fun setOfflineMode(enabled: Boolean) {
+        store.edit { it[Keys.OFFLINE_MODE] = enabled }
+    }
+
+    suspend fun setAutoDownloadLikes(enabled: Boolean) {
+        store.edit { it[Keys.AUTO_DOWNLOAD] = enabled }
+    }
+
+    suspend fun setAutoplayRelated(enabled: Boolean) {
+        store.edit { it[Keys.AUTOPLAY] = enabled }
+    }
+
     private fun Preferences.toSettings() = AppSettings(
-        token = this[Keys.TOKEN]?.takeIf { it.isNotBlank() },
+        token = this[Keys.TOKEN]?.takeIf { it.isNotBlank() }?.let { stored ->
+            TokenCipher.decrypt(stored)?.takeIf { it.isNotBlank() }
+        },
         clientId = this[Keys.CLIENT_ID]?.takeIf { it.isNotBlank() },
         quality = Quality.from(this[Keys.QUALITY]),
         themeMode = ThemeMode.from(this[Keys.THEME]),
@@ -119,6 +141,10 @@ class Prefs(context: Context) {
         equalizerPreset = EqualizerPreset.from(this[Keys.EQ_PRESET]),
         playbackSpeed = this[Keys.SPEED] ?: 1f,
         downloadWifiOnly = this[Keys.WIFI_ONLY] ?: true,
+        streamWifiOnly = this[Keys.STREAM_WIFI_ONLY] ?: false,
+        offlineMode = this[Keys.OFFLINE_MODE] ?: false,
+        autoDownloadLikes = this[Keys.AUTO_DOWNLOAD] ?: false,
+        autoplayRelated = this[Keys.AUTOPLAY] ?: true,
         userId = this[Keys.USER_ID],
         userName = this[Keys.USER_NAME]?.takeIf { it.isNotBlank() },
         userAvatar = this[Keys.USER_AVATAR]?.takeIf { it.isNotBlank() },
@@ -135,6 +161,10 @@ class Prefs(context: Context) {
         val EQ_PRESET = stringPreferencesKey("eq_preset")
         val SPEED = floatPreferencesKey("playback_speed")
         val WIFI_ONLY = booleanPreferencesKey("wifi_only")
+        val STREAM_WIFI_ONLY = booleanPreferencesKey("stream_wifi_only")
+        val OFFLINE_MODE = booleanPreferencesKey("offline_mode")
+        val AUTO_DOWNLOAD = booleanPreferencesKey("auto_download_likes")
+        val AUTOPLAY = booleanPreferencesKey("autoplay_related")
         val USER_ID = longPreferencesKey("user_id")
         val USER_NAME = stringPreferencesKey("user_name")
         val USER_AVATAR = stringPreferencesKey("user_avatar")

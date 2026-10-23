@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
@@ -91,6 +92,7 @@ fun TrackRow(
     onClick: () -> Unit,
     onLike: () -> Unit,
     onDownload: () -> Unit,
+    onMore: (() -> Unit)? = null,
 ) {
     Row(
         Modifier
@@ -144,6 +146,16 @@ fun TrackRow(
                 tint = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )
+        }
+        if (onMore != null) {
+            IconButton(onClick = onMore, modifier = Modifier.size(34.dp)) {
+                Icon(
+                    imageVector = Icons.Rounded.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

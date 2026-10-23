@@ -1,7 +1,10 @@
 package dev.bitplugg.matesound.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -18,10 +21,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,7 +76,13 @@ fun SettingsScreen(
     onSignIn: () -> Unit,
 ) {
     val vm: SettingsViewModel = appViewModel { container ->
-        SettingsViewModel(container.prefs, container.clientIds, container.library, container.auth)
+        SettingsViewModel(
+            container.prefs,
+            container.clientIds,
+            container.library,
+            container.auth,
+            container.downloads,
+        )
     }
     val settings by vm.settings.collectAsStateWithLifecycle()
     val container = LocalAppContainer.current
@@ -78,7 +93,9 @@ fun SettingsScreen(
     ) { _ -> }
     var showTokenDialog by remember { mutableStateOf(false) }
     var crashText by remember { mutableStateOf<String?>(null) }
+    var confirmClearDownloads by remember { mutableStateOf(false) }
     val crashFile = remember { File(context.filesDir, MateSoundApp.CRASH_FILE) }
+    val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -119,6 +136,25 @@ fun SettingsScreen(
                 onClick = { showTokenDialog = true },
             )
         }
+        if (settings.token != null) {
+            item {
+                SettingsClickableRow(
+                    title = stringResource(R.string.copy_token),
+                    subtitle = null,
+                    trailingIcon = Icons.Rounded.ContentCopy,
+                    onClick = {
+                        clipboard?.setPrimaryClip(
+                            ClipData.newPlainText("oauth_token", settings.token),
+                        )
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.token_copied),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                )
+            }
+        }
 
         item { SettingsSection(stringResource(R.string.settings_playback)) }
         item {
@@ -139,6 +175,41 @@ fun SettingsScreen(
                 checked = settings.equalizerEnabled,
                 onCheckedChange = vm::setEqualizerEnabled,
                 icon = Icons.Rounded.GraphicEq,
+            )
+        }
+        item {
+            SettingsSwitchRow(
+                title = stringResource(R.string.autoplay_related),
+                subtitle = stringResource(R.string.autoplay_related_hint),
+                checked = settings.autoplayRelated,
+                onCheckedChange = vm::setAutoplayRelated,
+            )
+        }
+        item {
+            SettingsSwitchRow(
+                title = stringResource(R.string.stream_wifi_only),
+                subtitle = null,
+                checked = settings.streamWifiOnly,
+                onCheckedChange = vm::setStreamWifiOnly,
+                icon = Icons.Rounded.WifiOff,
+            )
+        }
+        item {
+            SettingsSwitchRow(
+                title = stringResource(R.string.offline_mode),
+                subtitle = stringResource(R.string.offline_mode_hint),
+                checked = settings.offlineMode,
+                onCheckedChange = vm::setOfflineMode,
+                icon = Icons.Rounded.CloudOff,
+            )
+        }
+        item {
+            SettingsSwitchRow(
+                title = stringResource(R.string.auto_download_likes),
+                subtitle = stringResource(R.string.auto_download_likes_hint),
+                checked = settings.autoDownloadLikes,
+                onCheckedChange = vm::setAutoDownloadLikes,
+                icon = Icons.Rounded.Download,
             )
         }
         if (settings.equalizerEnabled) {
@@ -214,6 +285,13 @@ fun SettingsScreen(
                 onClick = vm::clearLikes,
             )
         }
+        item {
+            SettingsClickableRow(
+                title = stringResource(R.string.clear_downloads),
+                trailingIcon = Icons.Rounded.DeleteSweep,
+                onClick = { confirmClearDownloads = true },
+            )
+        }
 
         item { SettingsSection(stringResource(R.string.settings_advanced)) }
         item {
@@ -230,6 +308,37 @@ fun SettingsScreen(
                     subtitle = crashFile.name,
                     onClick = {
                         crashText = runCatching { crashFile.readText() }.getOrNull()
+                    },
+                )
+            }
+            item {
+                SettingsClickableRow(
+                    title = stringResource(R.string.report_crash),
+                    subtitle = stringResource(R.string.report_crash_hint),
+                    trailingIcon = Icons.Rounded.BugReport,
+                    onClick = {
+                        val log = runCatching { crashFile.readText() }.getOrDefault("")
+                        val url = Uri.Builder()
+                            .scheme("https")
+                            .authority("github.com")
+                            .appendPath("bitplugg")
+                            .appendPath("matesound")
+                            .appendPath("issues")
+                            .appendPath("new")
+                            .appendQueryParameter(
+                                "title",
+                                "[crash] matesound ${BuildConfig.VERSION_NAME}",
+                            )
+                            .appendQueryParameter(
+                                "body",
+                                "**Version:** ${BuildConfig.VERSION_NAME}\n\n" +
+                                    "**What happened:**\n\n\n" +
+                                    "**Crash log:**\n```\n${log.take(6_000)}\n```\n",
+                            )
+                            .build()
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, url))
+                        }
                     },
                 )
             }
@@ -293,6 +402,27 @@ fun SettingsScreen(
             )
         }
         item { Spacer(Modifier.height(24.dp)) }
+    }
+
+    if (confirmClearDownloads) {
+        AlertDialog(
+            onDismissRequest = { confirmClearDownloads = false },
+            title = { Text(stringResource(R.string.clear_downloads)) },
+            text = { Text(stringResource(R.string.clear_downloads_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.clearDownloads()
+                        confirmClearDownloads = false
+                    },
+                ) { Text(stringResource(R.string.delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearDownloads = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     if (showTokenDialog) {

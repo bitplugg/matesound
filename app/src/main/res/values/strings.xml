@@ -113,4 +113,75 @@
     <string name="login_saving">Verifying session…</string>
     <string name="login_rejected">SoundCloud rejected this session. Sign in again, or paste the oauth_token cookie manually.</string>
     <string name="close">Close</string>
+
+    <string name="home_guest">Guest</string>
+    <string name="home_greeting">%1$s hello! How are you today?</string>
+    <string name="home_greeting_guest">Hello! How are you today?</string>
+
+    <string name="search_history">Recent searches</string>
+    <string name="clear_search_history">Clear</string>
+
+    <string name="tab_albums">Albums</string>
+    <string name="tab_likes">Likes</string>
+    <string name="follow">Follow</string>
+    <string name="following">Following</string>
+    <string name="following_feed">Following feed</string>
+    <string name="followers">%1$s followers</string>
+
+    <string name="play_next">Play next</string>
+    <string name="add_to_queue">Add to queue</string>
+    <string name="remove_from_queue">Remove from queue</string>
+    <string name="clear_queue">Clear queue</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="save_queue">Save queue</string>
+    <string name="add_to_playlist">Add to playlist</string>
+    <string name="create_playlist">New playlist</string>
+    <string name="playlist_name">Playlist name</string>
+    <string name="rename">Rename</string>
+    <string name="delete">Delete</string>
+    <string name="share">Share</string>
+    <string name="download_all">Download all</string>
+    <string name="enqueue_all">Add all to queue</string>
+    <string name="remove">Remove</string>
+    <string name="saved_playlist">Playlist created</string>
+    <string name="local_playlists">Local playlists</string>
+    <string name="empty_local_playlists">Create a playlist from the queue or from any track menu.</string>
+    <string name="track_count">%1$d tracks</string>
+
+    <string name="copy_token">Copy oauth token</string>
+    <string name="token_copied">Token copied to clipboard</string>
+    <string name="stream_wifi_only">Stream on Wi-Fi only</string>
+    <string name="offline_mode">Offline mode</string>
+    <string name="offline_mode_hint">Play downloaded tracks only</string>
+    <string name="auto_download_likes">Auto-download likes</string>
+    <string name="auto_download_likes_hint">Download new liked tracks in the background</string>
+    <string name="autoplay_related">Autoplay related tracks</string>
+    <string name="autoplay_related_hint">Keep playing similar tracks when the queue ends</string>
+    <string name="clear_downloads">Delete all downloads</string>
+    <string name="clear_downloads_confirm">Remove every downloaded file from this device?</string>
+    <string name="report_crash">Report a crash</string>
+    <string name="report_crash_hint">Open a GitHub issue with the last crash log</string>
+    <string name="downloaded_count">%1$d downloaded</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="retry_download">Retry</string>
+    <string name="cancel_download">Cancel</string>
+    <string name="waiting_wifi">Waiting for Wi-Fi</string>
+    <string name="download_queued">Queued</string>
+    <string name="download_running">Downloading</string>
+    <string name="download_paused">Paused</string>
+    <string name="download_done">Downloaded</string>
+    <string name="download_failed_short">Failed</string>
+
+    <string name="widget_description">matesound player controls</string>
+    <string name="widget_play_pause">Play or pause</string>
+    <string name="widget_next">Next track</string>
+    <string name="widget_previous">Previous track</string>
+    <string name="widget_open">Open matesound</string>
+    <string name="loading">Loading…</string>
+    <string name="import_m3u">Import M3U</string>
+    <string name="export_m3u">Export M3U</string>
+    <string name="import_done">Playlist imported</string>
+    <string name="import_empty">No SoundCloud links found in this file</string>
 </resources>

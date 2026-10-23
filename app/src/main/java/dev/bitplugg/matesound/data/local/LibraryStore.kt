@@ -4,6 +4,7 @@ import android.content.Context
 import dev.bitplugg.matesound.data.model.DownloadedTrack
 import dev.bitplugg.matesound.data.model.HistoryEntry
 import dev.bitplugg.matesound.data.model.LibraryData
+import dev.bitplugg.matesound.data.model.LocalPlaylist
 import dev.bitplugg.matesound.data.model.ScTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +50,91 @@ class LibraryStore(context: Context, private val json: Json) {
 
     suspend fun clearHistory() = mutate { it.copy(history = emptyList()) to Unit }
 
+    suspend fun addSearch(query: String) {
+        val value = query.trim()
+        if (value.length < 2) return
+        mutate { current ->
+            val history = (listOf(value) + current.searchHistory.filterNot { it.equals(value, true) })
+                .take(MAX_SEARCH_HISTORY)
+            current.copy(searchHistory = history) to Unit
+        }
+    }
+
+    suspend fun clearSearchHistory() = mutate { it.copy(searchHistory = emptyList()) to Unit }
+
+    suspend fun replaceLikes(likes: List<ScTrack>) = mutate { current ->
+        current.copy(likes = likes.distinctBy { it.id }) to Unit
+    }
+
+    suspend fun addLocalPlaylist(title: String, tracks: List<ScTrack>): LocalPlaylist {
+        val now = System.currentTimeMillis()
+        val playlist = LocalPlaylist(
+            id = java.util.UUID.randomUUID().toString(),
+            title = title.trim().ifBlank { "Playlist" },
+            tracks = tracks.distinctBy { it.id },
+            createdAt = now,
+            updatedAt = now,
+        )
+        mutate { current ->
+            current.copy(localPlaylists = listOf(playlist) + current.localPlaylists) to playlist
+        }
+        return playlist
+    }
+
+    suspend fun deleteLocalPlaylist(id: String) = mutate { current ->
+        current.copy(localPlaylists = current.localPlaylists.filterNot { it.id == id }) to Unit
+    }
+
+    suspend fun renameLocalPlaylist(id: String, title: String) = mutate { current ->
+        current.copy(
+            localPlaylists = current.localPlaylists.map {
+                if (it.id == id) it.copy(title = title, updatedAt = System.currentTimeMillis()) else it
+            },
+        ) to Unit
+    }
+
+    suspend fun addTracksToLocalPlaylist(id: String, tracks: List<ScTrack>) = mutate { current ->
+        current.copy(
+            localPlaylists = current.localPlaylists.map {
+                if (it.id == id) {
+                    it.copy(
+                        tracks = (it.tracks + tracks).distinctBy { track -> track.id },
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                } else {
+                    it
+                }
+            },
+        ) to Unit
+    }
+
+    suspend fun removeTrackFromLocalPlaylist(id: String, trackId: Long) = mutate { current ->
+        current.copy(
+            localPlaylists = current.localPlaylists.map {
+                if (it.id == id) {
+                    it.copy(
+                        tracks = it.tracks.filterNot { track -> track.id == trackId },
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                } else {
+                    it
+                }
+            },
+        ) to Unit
+    }
+
+    suspend fun setLocalPlaylistTracks(id: String, tracks: List<ScTrack>) = mutate { current ->
+        current.copy(
+            localPlaylists = current.localPlaylists.map {
+                if (it.id == id) {
+                    it.copy(tracks = tracks.distinctBy { track -> track.id }, updatedAt = System.currentTimeMillis())
+                } else {
+                    it
+                }
+            },
+        ) to Unit
+    }
+
     suspend fun addDownload(download: DownloadedTrack) = mutate { current ->
         val downloads = listOf(download) + current.downloads.filterNot { it.track.id == download.track.id }
         current.copy(downloads = downloads) to Unit
@@ -57,6 +143,12 @@ class LibraryStore(context: Context, private val json: Json) {
     suspend fun removeDownload(trackId: Long) = mutate { current ->
         current.copy(downloads = current.downloads.filterNot { it.track.id == trackId }) to Unit
     }
+
+    suspend fun removeDownloads(trackIds: Collection<Long>) = mutate { current ->
+        current.copy(downloads = current.downloads.filterNot { it.track.id in trackIds }) to Unit
+    }
+
+    suspend fun clearDownloads() = mutate { it.copy(downloads = emptyList()) to Unit }
 
     suspend fun clearLikes() = mutate { it.copy(likes = emptyList()) to Unit }
 
@@ -91,5 +183,6 @@ class LibraryStore(context: Context, private val json: Json) {
 
     private companion object {
         const val MAX_HISTORY = 100
+        const val MAX_SEARCH_HISTORY = 12
     }
 }

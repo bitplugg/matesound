@@ -2,6 +2,8 @@ package dev.bitplugg.matesound.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -44,6 +46,20 @@ class PlaybackService : MediaSessionService() {
             .setMediaSourceFactory(
                 ResolvingMediaSourceFactory(this) { trackId ->
                     runBlocking(Dispatchers.IO) {
+                        val current = container.prefs.current()
+                        val offline = container.library.downloaded(trackId) != null
+                        if (!offline) {
+                            if (current.offlineMode) {
+                                throw IllegalStateException(
+                                    "Offline mode is on — this track is not downloaded",
+                                )
+                            }
+                            if (current.streamWifiOnly && !isOnUnmeteredNetwork()) {
+                                throw IllegalStateException(
+                                    "Wi-Fi only streaming is enabled in Settings",
+                                )
+                            }
+                        }
                         withTimeout(25_000L) {
                             container.repository.streamUrlById(trackId, quality)
                         }
@@ -129,6 +145,13 @@ class PlaybackService : MediaSessionService() {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+    }
+
+    private fun isOnUnmeteredNetwork(): Boolean {
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return false
+        val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
     }
 
     private companion object {

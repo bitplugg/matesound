@@ -72,6 +72,7 @@ class PlayerController(
     private var pendingPlay: PendingPlay? = null
     private var tickerJob: Job? = null
     private var sleepJob: Job? = null
+    private var autoplayJob: Job? = null
     private val knownTracks = mutableMapOf<Long, ScTrack>()
 
     private data class PendingPlay(val tracks: List<ScTrack>, val index: Int)
@@ -121,6 +122,39 @@ class PlayerController(
         override fun onPlayerError(error: PlaybackException) {
             _state.update { it.copy(error = error.message ?: "playback error") }
         }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState == Player.STATE_ENDED) maybeAutoplayRelated()
+        }
+    }
+
+    /**
+     * When the queue finishes, continue with tracks related to the last one so
+     * playback never stops at the end of an album/playlist.
+     */
+    private fun maybeAutoplayRelated() {
+        val mediaController = controller ?: return
+        if (autoplayJob?.isActive == true) return
+        val lastId = mediaController.currentMediaItem?.mediaId?.toLongOrNull() ?: return
+        autoplayJob = scope.launch {
+            val enabled = runCatching { prefs.current().autoplayRelated }.getOrDefault(false)
+            if (!enabled) return@launch
+            val related = runCatching { repository.relatedTracks(lastId, 20) }
+                .getOrDefault(emptyList())
+                .filter { it.streamable && it.id != 0L }
+                .distinctBy { it.id }
+                .filter { track -> track.id !in knownTracks }
+                .take(10)
+            if (related.isEmpty()) return@launch
+            val start = mediaController.mediaItemCount
+            related.forEach { track ->
+                knownTracks[track.id] = track
+                mediaController.addMediaItem(track.toMediaItem())
+            }
+            mediaController.seekToDefaultPosition(start)
+            mediaController.prepare()
+            mediaController.play()
+        }
     }
 
     fun play(tracks: List<ScTrack>, startIndex: Int = 0) {
@@ -166,6 +200,52 @@ class PlayerController(
             mediaController.play()
         }
     }
+
+    fun playNext(track: ScTrack) {
+        knownTracks[track.id] = track
+        val mediaController = controller ?: return
+        val index = (mediaController.currentMediaItemIndex + 1)
+            .coerceIn(0, mediaController.mediaItemCount)
+        mediaController.addMediaItem(index, track.toMediaItem())
+    }
+
+    fun addToQueue(track: ScTrack) {
+        knownTracks[track.id] = track
+        val mediaController = controller ?: return
+        mediaController.addMediaItem(track.toMediaItem())
+    }
+
+    fun addAllToQueue(tracks: List<ScTrack>) {
+        if (tracks.isEmpty()) return
+        tracks.forEach { knownTracks[it.id] = it }
+        val mediaController = controller ?: return
+        mediaController.addMediaItems(tracks.map { it.toMediaItem() })
+    }
+
+    fun removeQueueItem(index: Int) {
+        val mediaController = controller ?: return
+        if (index in 0 until mediaController.mediaItemCount) {
+            mediaController.removeMediaItem(index)
+        }
+    }
+
+    fun moveQueueItem(from: Int, to: Int) {
+        val mediaController = controller ?: return
+        if (from in 0 until mediaController.mediaItemCount &&
+            to in 0 until mediaController.mediaItemCount &&
+            from != to
+        ) {
+            mediaController.moveMediaItem(from, to)
+        }
+    }
+
+    fun clearQueue() {
+        val mediaController = controller ?: return
+        mediaController.stop()
+        mediaController.clearMediaItems()
+    }
+
+    fun queueTracks(): List<ScTrack> = _state.value.queue.mapNotNull { knownTracks[it.id] }
 
     fun previous() {
         controller?.seekToPreviousMediaItem()

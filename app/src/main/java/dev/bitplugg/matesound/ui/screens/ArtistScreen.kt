@@ -1,5 +1,6 @@
 package dev.bitplugg.matesound.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,16 +17,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.PersonRemove
+import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,10 +52,12 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bitplugg.matesound.R
 import dev.bitplugg.matesound.data.model.ScPlaylist
+import dev.bitplugg.matesound.data.model.ScTrack
 import dev.bitplugg.matesound.data.model.ScUser
 import dev.bitplugg.matesound.ui.Artwork
 import dev.bitplugg.matesound.ui.EmptyState
 import dev.bitplugg.matesound.ui.LoadingBox
+import dev.bitplugg.matesound.ui.PlaylistRow
 import dev.bitplugg.matesound.ui.SectionTitle
 import dev.bitplugg.matesound.ui.TrackItem
 import dev.bitplugg.matesound.ui.appViewModel
@@ -52,9 +69,15 @@ import dev.bitplugg.matesound.ui.vm.PlaylistViewModel
 @Composable
 fun ArtistScreen(
     onBack: () -> Unit,
+    onOpenPlaylist: (Long) -> Unit,
 ) {
     val vm: ArtistViewModel = appViewModel { container ->
-        ArtistViewModel(container.repository, container.player, createSavedStateHandle())
+        ArtistViewModel(
+            container.repository,
+            container.player,
+            container.prefs,
+            createSavedStateHandle(),
+        )
     }
     val state by vm.state.collectAsStateWithLifecycle()
 
@@ -81,12 +104,86 @@ fun ArtistScreen(
                         ArtistHeader(
                             user = state.user,
                             trackCount = state.tracks.size,
-                            onPlayAll = vm::playAll,
+                            loggedIn = state.loggedIn,
+                            following = state.following,
+                            onToggleFollow = vm::toggleFollow,
+                            onPlayAll = { vm.playAll() },
                         )
                     }
-                    item { SectionTitle(stringResource(R.string.popular_tracks)) }
-                    items(state.tracks, key = { it.id }) { track ->
-                        TrackItem(track = track, onClick = { vm.play(track) })
+                    item {
+                        ScrollableTabRow(selectedTabIndex = state.tab, edgePadding = 8.dp) {
+                            val tabs = listOf(
+                                R.string.tab_tracks,
+                                R.string.tab_likes,
+                                R.string.tab_playlists,
+                                R.string.tab_albums,
+                            )
+                            tabs.forEachIndexed { index, label ->
+                                Tab(
+                                    selected = state.tab == index,
+                                    onClick = { vm.selectTab(index) },
+                                    text = { Text(stringResource(label)) },
+                                )
+                            }
+                        }
+                    }
+                    when (state.tab) {
+                        0 -> {
+                            if (state.tracks.isEmpty()) {
+                                item {
+                                    EmptyState(
+                                        icon = Icons.Rounded.MusicNote,
+                                        title = stringResource(R.string.no_results),
+                                    )
+                                }
+                            } else {
+                                items(state.tracks, key = { it.id }) { track ->
+                                    TrackItem(track = track, onClick = { vm.play(track) })
+                                }
+                            }
+                        }
+                        1 -> {
+                            if (state.likes.isEmpty()) {
+                                item {
+                                    EmptyState(
+                                        icon = Icons.Rounded.MusicNote,
+                                        title = stringResource(R.string.no_results),
+                                    )
+                                }
+                            } else {
+                                items(state.likes, key = { it.id }) { track ->
+                                    TrackItem(track = track, onClick = { vm.play(track) })
+                                }
+                            }
+                        }
+                        2 -> {
+                            if (state.playlists.isEmpty()) {
+                                item {
+                                    EmptyState(
+                                        icon = Icons.Rounded.MusicNote,
+                                        title = stringResource(R.string.empty_playlists),
+                                    )
+                                }
+                            } else {
+                                items(state.playlists, key = { it.id }) { playlist ->
+                                    PlaylistRow(playlist = playlist, onClick = { onOpenPlaylist(playlist.id) })
+                                }
+                            }
+                        }
+                        3 -> {
+                            if (state.albums.isEmpty()) {
+                                item {
+                                    EmptyState(
+                                        icon = Icons.Rounded.MusicNote,
+                                        title = stringResource(R.string.no_results),
+                                    )
+                                }
+                            } else {
+                                items(state.albums, key = { it.id }) { playlist ->
+                                    PlaylistRow(playlist = playlist, onClick = { onOpenPlaylist(playlist.id) })
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -94,8 +191,16 @@ fun ArtistScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ArtistHeader(user: ScUser?, trackCount: Int, onPlayAll: () -> Unit) {
+private fun ArtistHeader(
+    user: ScUser?,
+    trackCount: Int,
+    loggedIn: Boolean,
+    following: Boolean,
+    onToggleFollow: () -> Unit,
+    onPlayAll: () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -134,10 +239,27 @@ private fun ArtistHeader(user: ScUser?, trackCount: Int, onPlayAll: () -> Unit) 
             )
         }
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onPlayAll) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-            Spacer(Modifier.size(6.dp))
-            Text(stringResource(R.string.play_all))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onPlayAll) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                Spacer(Modifier.size(6.dp))
+                Text(stringResource(R.string.play_all))
+            }
+            if (loggedIn) {
+                OutlinedButton(onClick = onToggleFollow) {
+                    Icon(
+                        if (following) Icons.Rounded.PersonRemove else Icons.Rounded.PersonAdd,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    Text(
+                        stringResource(
+                            if (following) R.string.following else R.string.follow,
+                        ),
+                    )
+                }
+            }
         }
     }
 }
@@ -148,9 +270,17 @@ fun PlaylistScreen(
     onBack: () -> Unit,
 ) {
     val vm: PlaylistViewModel = appViewModel { container ->
-        PlaylistViewModel(container.repository, container.player, createSavedStateHandle())
+        PlaylistViewModel(
+            container.repository,
+            container.player,
+            container.prefs,
+            container.downloads,
+            createSavedStateHandle(),
+        )
     }
     val state by vm.state.collectAsStateWithLifecycle()
+    var renaming by remember { mutableStateOf(false) }
+    var newTitle by remember { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -175,7 +305,14 @@ fun PlaylistScreen(
                         PlaylistHeader(
                             playlist = state.playlist,
                             trackCount = state.tracks.size,
+                            isOwner = state.isOwner,
                             onPlayAll = vm::playAll,
+                            onDownloadAll = vm::downloadAll,
+                            onEnqueueAll = vm::enqueueAll,
+                            onRename = {
+                                newTitle = state.playlist?.title.orEmpty()
+                                renaming = true
+                            },
                         )
                     }
                     if (state.tracks.isEmpty()) {
@@ -187,17 +324,60 @@ fun PlaylistScreen(
                         }
                     } else {
                         items(state.tracks, key = { it.id }) { track ->
-                            TrackItem(track = track, onClick = { vm.play(track) })
+                            TrackItem(
+                                track = track,
+                                onClick = { vm.play(track) },
+                                onRemove = if (state.isOwner) {
+                                    { vm.removeTrack(track) }
+                                } else {
+                                    null
+                                },
+                            )
                         }
                     }
                 }
             }
         }
     }
+
+    if (renaming) {
+        AlertDialog(
+            onDismissRequest = { renaming = false },
+            title = { Text(stringResource(R.string.rename)) },
+            text = {
+                OutlinedTextField(
+                    value = newTitle,
+                    onValueChange = { newTitle = it },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.rename(newTitle)
+                        renaming = false
+                    },
+                ) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { renaming = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
-private fun PlaylistHeader(playlist: ScPlaylist?, trackCount: Int, onPlayAll: () -> Unit) {
+private fun PlaylistHeader(
+    playlist: ScPlaylist?,
+    trackCount: Int,
+    isOwner: Boolean,
+    onPlayAll: () -> Unit,
+    onDownloadAll: () -> Unit,
+    onEnqueueAll: () -> Unit,
+    onRename: () -> Unit,
+) {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Artwork(url = playlist?.artworkUrl, size = 120.dp, corner = 12.dp)
@@ -217,12 +397,34 @@ private fun PlaylistHeader(playlist: ScPlaylist?, trackCount: Int, onPlayAll: ()
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (isOwner) {
+                IconButton(onClick = onRename) {
+                    Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.rename))
+                }
+            }
         }
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onPlayAll) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-            Spacer(Modifier.size(6.dp))
-            Text(stringResource(R.string.play_all))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onPlayAll) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                Spacer(Modifier.size(6.dp))
+                Text(stringResource(R.string.play_all))
+            }
+            OutlinedButton(onClick = onDownloadAll) {
+                Icon(
+                    Icons.Rounded.Download,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.size(6.dp))
+                Text(stringResource(R.string.download_all))
+            }
+            IconButton(onClick = onEnqueueAll) {
+                Icon(
+                    Icons.Rounded.QueueMusic,
+                    contentDescription = stringResource(R.string.enqueue_all),
+                )
+            }
         }
     }
 }

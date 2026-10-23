@@ -113,4 +113,75 @@
     <string name="login_saving">Проверяем сессию…</string>
     <string name="login_rejected">SoundCloud отклонил эту сессию. Войдите ещё раз или вставьте cookie oauth_token вручную.</string>
     <string name="close">Закрыть</string>
+
+    <string name="home_guest">Гость</string>
+    <string name="home_greeting">%1$s, привет! Как ты сегодня?</string>
+    <string name="home_greeting_guest">Привет! Как ты сегодня?</string>
+
+    <string name="search_history">Недавние запросы</string>
+    <string name="clear_search_history">Очистить</string>
+
+    <string name="tab_albums">Альбомы</string>
+    <string name="tab_likes">Лайки</string>
+    <string name="follow">Подписаться</string>
+    <string name="following">Подписки</string>
+    <string name="following_feed">Лента подписок</string>
+    <string name="followers">%1$s подписчиков</string>
+
+    <string name="play_next">Играть следующим</string>
+    <string name="add_to_queue">В очередь</string>
+    <string name="remove_from_queue">Убрать из очереди</string>
+    <string name="clear_queue">Очистить очередь</string>
+    <string name="move_up">Выше</string>
+    <string name="move_down">Ниже</string>
+    <string name="save_queue">Сохранить очередь</string>
+    <string name="add_to_playlist">В плейлист</string>
+    <string name="create_playlist">Новый плейлист</string>
+    <string name="playlist_name">Название плейлиста</string>
+    <string name="rename">Переименовать</string>
+    <string name="delete">Удалить</string>
+    <string name="share">Поделиться</string>
+    <string name="download_all">Скачать всё</string>
+    <string name="enqueue_all">Добавить всё в очередь</string>
+    <string name="remove">Убрать</string>
+    <string name="saved_playlist">Плейлист создан</string>
+    <string name="local_playlists">Локальные плейлисты</string>
+    <string name="empty_local_playlists">Создайте плейлист из очереди или меню любого трека.</string>
+    <string name="track_count">%1$d треков</string>
+
+    <string name="copy_token">Скопировать oauth token</string>
+    <string name="token_copied">Токен скопирован</string>
+    <string name="stream_wifi_only">Стримить только по Wi-Fi</string>
+    <string name="offline_mode">Офлайн-режим</string>
+    <string name="offline_mode_hint">Играть только скачанные треки</string>
+    <string name="auto_download_likes">Автозагрузка лайков</string>
+    <string name="auto_download_likes_hint">Скачивать новые лайки в фоне</string>
+    <string name="autoplay_related">Автовоспроизведение похожих</string>
+    <string name="autoplay_related_hint">Продолжать похожими треками после конца очереди</string>
+    <string name="clear_downloads">Удалить все загрузки</string>
+    <string name="clear_downloads_confirm">Удалить все скачанные файлы с устройства?</string>
+    <string name="report_crash">Сообщить об ошибке</string>
+    <string name="report_crash_hint">Открыть issue на GitHub с последним crash-логом</string>
+    <string name="downloaded_count">Скачано: %1$d</string>
+    <string name="pause">Пауза</string>
+    <string name="resume">Продолжить</string>
+    <string name="retry_download">Повторить</string>
+    <string name="cancel_download">Отмена</string>
+    <string name="waiting_wifi">Ожидание Wi-Fi</string>
+    <string name="download_queued">В очереди</string>
+    <string name="download_running">Скачивание</string>
+    <string name="download_paused">Пауза</string>
+    <string name="download_done">Скачано</string>
+    <string name="download_failed_short">Ошибка</string>
+
+    <string name="widget_description">Управление плеером matesound</string>
+    <string name="widget_play_pause">Играть или пауза</string>
+    <string name="widget_next">Следующий трек</string>
+    <string name="widget_previous">Предыдущий трек</string>
+    <string name="widget_open">Открыть matesound</string>
+    <string name="loading">Загрузка…</string>
+    <string name="import_m3u">Импорт M3U</string>
+    <string name="export_m3u">Экспорт M3U</string>
+    <string name="import_done">Плейлист импортирован</string>
+    <string name="import_empty">В файле нет ссылок SoundCloud</string>
 </resources>

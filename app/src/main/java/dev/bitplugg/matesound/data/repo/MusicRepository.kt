@@ -5,6 +5,7 @@ import dev.bitplugg.matesound.data.local.Prefs
 import dev.bitplugg.matesound.data.model.ChartsPage
 import dev.bitplugg.matesound.data.model.PlaylistPage
 import dev.bitplugg.matesound.data.model.Quality
+import dev.bitplugg.matesound.data.model.Resolved
 import dev.bitplugg.matesound.data.model.ScPlaylist
 import dev.bitplugg.matesound.data.model.ScTrack
 import dev.bitplugg.matesound.data.model.ScUser
@@ -20,10 +21,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.concurrent.ConcurrentHashMap
 
@@ -101,8 +105,42 @@ class MusicRepository(
 
     suspend fun playlist(id: Long): ScPlaylist = api.get("/playlists/$id")
 
+    suspend fun relatedTracks(trackId: Long, limit: Int = 20): List<ScTrack> =
+        api.get<TrackPage>(
+            "/tracks/$trackId/related",
+            mapOf("limit" to "$limit", "linked_partitioning" to "1"),
+        ).collection
+
+    suspend fun artistPlaylists(id: Long, limit: Int = 50): List<ScPlaylist> =
+        api.get<PlaylistPage>(
+            "/users/$id/playlists",
+            mapOf("limit" to "$limit", "linked_partitioning" to "1"),
+        ).collection
+
+    suspend fun artistAlbums(id: Long, limit: Int = 50): List<ScPlaylist> =
+        api.get<PlaylistPage>(
+            "/users/$id/albums",
+            mapOf("limit" to "$limit", "linked_partitioning" to "1"),
+        ).collection
+
     suspend fun resolve(url: String): ScTrack? = runCatching {
         api.get<ScTrack>("/resolve", mapOf("url" to url))
+    }.getOrNull()
+
+    /**
+     * Resolves any soundcloud.com URL (track, playlist or user) into the
+     * matching model. Used by deep links and by pasting a link in search.
+     */
+    suspend fun resolveAny(url: String): Resolved? = runCatching {
+        val raw = api.request("/resolve", mapOf("url" to url))
+        val obj = json.parseToJsonElement(raw).jsonObject
+        when (obj["kind"]?.jsonPrimitive?.contentOrNull) {
+            "track" -> Resolved.Track(json.decodeFromJsonElement(ScTrack.serializer(), obj))
+            "playlist", "album" ->
+                Resolved.Playlist(json.decodeFromJsonElement(ScPlaylist.serializer(), obj))
+            "user" -> Resolved.User(json.decodeFromJsonElement(ScUser.serializer(), obj))
+            else -> null
+        }
     }.getOrNull()
 
     // ---------------------------------------------------------------- account
@@ -144,6 +182,110 @@ class MusicRepository(
         library.toggleLike(track)
         return liked
     }
+
+    suspend fun isFollowing(userId: Long): Boolean = runCatching {
+        val raw = api.request("/me/followings/$userId")
+        val obj = json.parseToJsonElement(raw).jsonObject
+        obj["following"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
+            ?: (obj["id"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() == userId)
+    }.getOrDefault(false)
+
+    suspend fun follow(userId: Long, follow: Boolean): Boolean {
+        val method = if (follow) "POST" else "DELETE"
+        api.send(method, "/me/followings/$userId")
+        return follow
+    }
+
+    suspend fun myFollowings(limit: Int = 100): List<ScUser> {
+        val raw = api.request(
+            "/me/followings",
+            mapOf("limit" to "$limit", "linked_partitioning" to "1"),
+        )
+        return parseUserCollection(raw)
+    }
+
+    suspend fun followingFeed(limit: Int = 50): List<ScTrack> {
+        val raw = runCatching {
+            api.request(
+                "/stream",
+                mapOf("limit" to "$limit", "linked_partitioning" to "1"),
+            )
+        }.getOrElse {
+            api.request(
+                "/me/followings/tracks",
+                mapOf("limit" to "$limit", "linked_partitioning" to "1"),
+            )
+        }
+        return parseTrackCollection(raw)
+    }
+
+    suspend fun syncLikes(limit: Int = 100): List<ScTrack> {
+        val likes = myLikes(limit)
+        library.replaceLikes(likes)
+        return likes
+    }
+
+    // ------------------------------------------------------------- playlists
+
+    suspend fun createPlaylist(
+        title: String,
+        tracks: List<ScTrack> = emptyList(),
+        isPrivate: Boolean = true,
+    ): ScPlaylist {
+        val body = playlistBody(title, tracks, isPrivate)
+        val response = api.sendJson("POST", "/playlists", body)
+        return json.decodeFromString(ScPlaylist.serializer(), response)
+    }
+
+    suspend fun updatePlaylist(
+        playlistId: Long,
+        title: String,
+        tracks: List<ScTrack>,
+        isPrivate: Boolean = true,
+    ): ScPlaylist {
+        val body = playlistBody(title, tracks, isPrivate)
+        val response = api.sendJson("PUT", "/playlists/$playlistId", body)
+        return json.decodeFromString(ScPlaylist.serializer(), response)
+    }
+
+    suspend fun deletePlaylist(playlistId: Long) {
+        api.send("DELETE", "/playlists/$playlistId")
+    }
+
+    suspend fun addTracksToPlaylist(playlistId: Long, tracks: List<ScTrack>): ScPlaylist {
+        val current = playlist(playlistId)
+        val merged = (current.tracks + tracks).filter { it.id != 0L }.distinctBy { it.id }
+        return updatePlaylist(
+            playlistId = playlistId,
+            title = current.title.orEmpty(),
+            tracks = merged,
+            isPrivate = true,
+        )
+    }
+
+    suspend fun removeTrackFromPlaylist(playlistId: Long, trackId: Long): ScPlaylist {
+        val current = playlist(playlistId)
+        val remaining = current.tracks.filter { it.id != 0L && it.id != trackId }
+        return updatePlaylist(
+            playlistId = playlistId,
+            title = current.title.orEmpty(),
+            tracks = remaining,
+            isPrivate = true,
+        )
+    }
+
+    private fun playlistBody(title: String, tracks: List<ScTrack>, isPrivate: Boolean): String =
+        buildJsonObject {
+            put("playlist", buildJsonObject {
+                put("title", title)
+                put("sharing", if (isPrivate) "private" else "public")
+                putJsonArray("tracks") {
+                    tracks.forEach { track ->
+                        add(buildJsonObject { put("id", track.id) })
+                    }
+                }
+            })
+        }.toString()
 
     // ---------------------------------------------------------------- streams
 
@@ -239,6 +381,21 @@ class MusicRepository(
             if (kind != null && kind != "track") return@mapNotNull null
             runCatching {
                 json.decodeFromJsonElement(ScTrack.serializer(), target)
+            }.getOrNull()
+        }
+    }
+
+    private fun parseUserCollection(raw: String): List<ScUser> {
+        val root = runCatching { json.parseToJsonElement(raw) }.getOrNull() ?: return emptyList()
+        val array = when (root) {
+            is JsonArray -> root
+            is JsonObject -> root["collection"]?.jsonArray ?: return emptyList()
+            else -> return emptyList()
+        }
+        return array.mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            runCatching {
+                json.decodeFromJsonElement(ScUser.serializer(), obj)
             }.getOrNull()
         }
     }

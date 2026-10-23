@@ -44,6 +44,7 @@ import dev.bitplugg.matesound.data.local.AppSettings
 import dev.bitplugg.matesound.ui.screens.ArtistScreen
 import dev.bitplugg.matesound.ui.screens.HomeScreen
 import dev.bitplugg.matesound.ui.screens.LibraryScreen
+import dev.bitplugg.matesound.ui.screens.LocalPlaylistScreen
 import dev.bitplugg.matesound.ui.screens.PlaylistScreen
 import dev.bitplugg.matesound.ui.screens.PlayerScreen
 import dev.bitplugg.matesound.ui.screens.SearchScreen
@@ -139,6 +140,7 @@ fun MateSoundRoot() {
                     composable("library") {
                         LibraryScreen(
                             onOpenPlaylist = { id -> navController.navigate("playlist/$id") },
+                            onOpenLocalPlaylist = { id -> navController.navigate("local/$id") },
                             onSignIn = startSignIn,
                         )
                     }
@@ -149,13 +151,25 @@ fun MateSoundRoot() {
                         route = "artist/{id}",
                         arguments = listOf(navArgument("id") { type = NavType.LongType }),
                     ) {
-                        ArtistScreen(onBack = { navController.popBackStack() })
+                        ArtistScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenPlaylist = { id -> navController.navigate("playlist/$id") },
+                        )
                     }
                     composable(
                         route = "playlist/{id}",
                         arguments = listOf(navArgument("id") { type = NavType.LongType }),
                     ) {
                         PlaylistScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable(
+                        route = "local/{id}",
+                        arguments = listOf(navArgument("id") { type = NavType.StringType }),
+                    ) {
+                        LocalPlaylistScreen(
+                            onBack = { navController.popBackStack() },
+                            navController = navController,
+                        )
                     }
                 }
             }

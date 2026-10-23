@@ -11,7 +11,12 @@ data class ScUser(
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("full_name") val fullName: String? = null,
     @SerialName("followers_count") val followersCount: Long? = null,
+    @SerialName("followings_count") val followingsCount: Long? = null,
     @SerialName("track_count") val trackCount: Long? = null,
+    @SerialName("playlist_count") val playlistCount: Long? = null,
+    @SerialName("likes_count") val likesCount: Long? = null,
+    val verified: Boolean? = null,
+    val following: Boolean? = null,
     val description: String? = null,
     val city: String? = null,
     val country_code: String? = null,
@@ -55,6 +60,8 @@ data class ScTrack(
     @SerialName("permalink_url") val permalinkUrl: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("track_authorization") val trackAuthorization: String? = null,
+    @SerialName("waveform_url") val waveformUrl: String? = null,
+    @SerialName("user_favorite") val userFavorite: Boolean? = null,
     val media: ScMedia? = null,
     val access: String? = null,
     @SerialName("monetization_model") val monetizationModel: String? = null,
@@ -78,6 +85,9 @@ data class ScPlaylist(
     @SerialName("permalink_url") val permalinkUrl: String? = null,
     @SerialName("is_album") val isAlbum: Boolean = false,
     val genre: String? = null,
+    @SerialName("likes_count") val likesCount: Long? = null,
+    @SerialName("release_date") val releaseDate: String? = null,
+    val label: ScUser? = null,
 ) {
     val itemCount: Int get() = trackCount ?: tracks.size
 }
@@ -136,7 +146,27 @@ data class LibraryData(
     val likes: List<ScTrack> = emptyList(),
     val history: List<HistoryEntry> = emptyList(),
     val downloads: List<DownloadedTrack> = emptyList(),
+    val searchHistory: List<String> = emptyList(),
+    val localPlaylists: List<LocalPlaylist> = emptyList(),
 )
+
+@Serializable
+data class LocalPlaylist(
+    val id: String,
+    val title: String,
+    val tracks: List<ScTrack> = emptyList(),
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L,
+) {
+    val itemCount: Int get() = tracks.size
+}
+
+/** Result of resolving a soundcloud.com link. */
+sealed class Resolved {
+    data class Track(val track: ScTrack) : Resolved()
+    data class Playlist(val playlist: ScPlaylist) : Resolved()
+    data class User(val user: ScUser) : Resolved()
+}
 
 enum class Quality(val key: String) {
     HIGH("high"),

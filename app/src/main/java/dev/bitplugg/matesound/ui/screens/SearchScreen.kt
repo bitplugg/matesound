@@ -1,32 +1,46 @@
 package dev.bitplugg.matesound.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bitplugg.matesound.R
+import dev.bitplugg.matesound.data.model.Resolved
 import dev.bitplugg.matesound.ui.EmptyState
 import dev.bitplugg.matesound.ui.LoadingBox
 import dev.bitplugg.matesound.ui.PlaylistRow
@@ -41,8 +55,25 @@ fun SearchScreen(
     onOpenArtist: (Long) -> Unit,
     onOpenPlaylist: (Long) -> Unit,
 ) {
-    val vm: SearchViewModel = appViewModel { SearchViewModel(it.repository, it.player) }
+    val vm: SearchViewModel = appViewModel {
+        SearchViewModel(it.repository, it.player, it.library)
+    }
     val state by vm.state.collectAsStateWithLifecycle()
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(state.resolved) {
+        when (val resolved = state.resolved) {
+            is Resolved.Playlist -> {
+                onOpenPlaylist(resolved.playlist.id)
+                vm.clearResolved()
+            }
+            is Resolved.User -> {
+                onOpenArtist(resolved.user.id)
+                vm.clearResolved()
+            }
+            else -> Unit
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(title = { Text(stringResource(R.string.nav_search)) })
@@ -56,10 +87,53 @@ fun SearchScreen(
             placeholder = { Text(stringResource(R.string.search_hint)) },
             leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
             singleLine = true,
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                imeAction = ImeAction.Search,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    keyboard?.hide()
+                    vm.submit()
+                },
             ),
         )
+
+        if (!state.searched && state.history.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 8.dp, top = 4.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Rounded.History,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(R.string.search_history),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = vm::clearHistory) {
+                    Text(stringResource(R.string.clear_search_history))
+                }
+            }
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(state.history, key = { it }) { query ->
+                    AssistChip(
+                        onClick = {
+                            keyboard?.hide()
+                            vm.applyQuery(query)
+                        },
+                        label = { Text(query) },
+                    )
+                }
+            }
+        }
 
         TabRow(selectedTabIndex = state.tab) {
             listOf(

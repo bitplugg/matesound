@@ -222,6 +222,7 @@ class UpdateManager(
             .url(RELEASES_API)
             .header("User-Agent", USER_AGENT)
             .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28")
             .build()
         http.newCall(request).execute().use { response ->
             if (response.code == 404) return@withContext null
@@ -251,7 +252,7 @@ class UpdateManager(
     companion object {
         private const val RELEASES_API =
             "https://api.github.com/repos/bitplugg/matesound/releases/latest"
-        private const val USER_AGENT = "matesound-updater"
+        private const val USER_AGENT = "matesound-android-app"
 
         fun isNewer(remote: String, current: String): Boolean {
             val remoteParts = parseVersion(remote)
