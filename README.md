@@ -76,4 +76,4 @@ app/src/main/java/dev/bitplugg/matesound/
 
 ## CI
 
-`.github/workflows/build.yml` собирает debug APK на каждый push/PR и прикладывает артефакт. На теги дополнительно собирается unsigned release APK.
+`.github/workflows/build.yml` собирает debug APK на каждый push/PR и прикладывает артефакт. На теги (`v*`) дополнительно собирается unsigned release APK и создаётся GitHub Release с обоими APK.

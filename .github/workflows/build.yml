@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   debug-apk:
@@ -57,3 +57,30 @@ jobs:
           name: matesound-release-unsigned
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [debug-apk, release-apk]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: matesound-debug
+          path: dist/debug
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: matesound-release-unsigned
+          path: dist/release
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd dist
+          gh release create "${GITHUB_REF_NAME}" \
+            debug/app-debug.apk \
+            release/app-release-unsigned.apk \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "matesound ${GITHUB_REF_NAME}" \
+            --notes "The debug APK is signed with the Android debug key and can be installed directly (enable installation from unknown sources). The release APK is unsigned — sign it locally with apksigner before installing."
