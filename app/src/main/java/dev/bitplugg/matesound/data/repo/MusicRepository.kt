@@ -310,6 +310,10 @@ class MusicRepository(
             ?: throw ScApiException(400, "Bad stream url")
         builder.addQueryParameter("client_id", clientIds.get())
         detailed.trackAuthorization?.let { builder.addQueryParameter("track_authorization", it) }
+        val token = prefs.token()
+        if (token != null && !builder.build().queryParameterNames.contains("oauth_token")) {
+            builder.addQueryParameter("oauth_token", token)
+        }
         val body = api.requestAbsolute(builder.build().toString())
         val mediaUrl = runCatching {
             json.decodeFromString<StreamResponse>(body).url
@@ -336,19 +340,17 @@ class MusicRepository(
         transcodings: List<dev.bitplugg.matesound.data.model.ScTranscoding>,
         quality: Quality,
     ): dev.bitplugg.matesound.data.model.ScTranscoding? {
-        // `abr_sq` transcodings require a real OAuth session, prefer fixed bitrates.
-        val playable = transcodings.filter { t ->
-            t.url.isNotBlank() &&
-                t.format?.protocol == "hls" &&
-                t.preset != "abr_sq"
+        val hls = transcodings.filter { t ->
+            t.url.isNotBlank() && (t.format?.protocol == "hls" || t.format?.mimeType?.contains("mpegurl") == true)
         }
         val preferred = when (quality) {
-            Quality.HIGH -> listOf("aac_160k", "aac_96k", "mp3_128k", "mp3_64k")
-            Quality.LOW -> listOf("aac_96k", "mp3_64k", "aac_160k", "mp3_128k")
+            Quality.HIGH -> listOf("abr_sq", "aac_160k", "opus_0_160", "mp3_128k", "hls_aac_160k", "aac_96k", "mp3_64k")
+            Quality.LOW -> listOf("aac_96k", "mp3_64k", "hls_aac_96k", "abr_sq", "aac_160k", "mp3_128k")
         }
-        return preferred.firstNotNullOfOrNull { preset ->
-            playable.firstOrNull { it.preset == preset }
-        } ?: playable.firstOrNull() ?: transcodings.firstOrNull()
+        return preferred.firstNotNullOfOrNull { preset -> hls.firstOrNull { it.preset == preset } }
+            ?: hls.firstOrNull()
+            ?: transcodings.firstOrNull { it.url.isNotBlank() && it.format?.protocol == "hls" }
+            ?: transcodings.firstOrNull { it.url.isNotBlank() }
     }
 
     // ---------------------------------------------------------------- helpers

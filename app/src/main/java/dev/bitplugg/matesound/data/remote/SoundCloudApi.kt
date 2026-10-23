@@ -137,6 +137,7 @@ class SoundCloudApi(
         val response = call.execute()
         if (response.code >= 500) {
             response.close()
+            runCatching { Thread.sleep(200) }
             return http.newCall(request).execute()
         }
         return response
