@@ -127,8 +127,10 @@ class SoundCloudApi(
         val request = Request.Builder()
             .url(finalUrl)
             .header("User-Agent", USER_AGENT)
-            .header("Accept", "application/json")
-            .header("Accept-Language", "en")
+            .header("Accept", "application/json, text/plain, */*")
+            .header("Accept-Language", "en-US,en;q=0.9")
+            .header("Origin", "https://soundcloud.com")
+            .header("Referer", "https://soundcloud.com/")
             .apply { if (token != null) header("Authorization", "OAuth $token") }
             .method(method, body ?: if (method == "GET" || method == "DELETE") null else EMPTY_BODY)
             .build()
