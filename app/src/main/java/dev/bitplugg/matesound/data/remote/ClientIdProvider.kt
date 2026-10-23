@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 /**
  * SoundCloud stopped handing out API keys to new apps. Third-party clients work
@@ -21,6 +22,14 @@ class ClientIdProvider(
 ) {
     @Volatile
     private var cached: String? = null
+
+    // Discovery is best-effort: do not let a slow soundcloud.com page block
+    // the first screen for minutes.
+    private val discoveryHttp by lazy {
+        http.newBuilder()
+            .callTimeout(8, TimeUnit.SECONDS)
+            .build()
+    }
 
     private val mutex = Mutex()
 
@@ -63,7 +72,7 @@ class ClientIdProvider(
             .header("User-Agent", USER_AGENT)
             .header("Accept", "text/html,application/xhtml+xml")
             .build()
-        http.newCall(request).execute().use { response ->
+        discoveryHttp.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
             return response.body?.string().orEmpty()
         }
@@ -78,7 +87,7 @@ class ClientIdProvider(
             .header("Accept", "application/json")
             .build()
         runCatching {
-            http.newCall(request).execute().use { response ->
+            discoveryHttp.newCall(request).execute().use { response ->
                 response.isSuccessful && response.body?.string()?.contains("\"collection\"") == true
             }
         }.getOrDefault(false)
@@ -89,7 +98,7 @@ class ClientIdProvider(
         const val USER_AGENT =
             "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
-        const val MAX_CANDIDATES = 12
+        const val MAX_CANDIDATES = 6
         val SOURCES = listOf(
             "https://soundcloud.com/",
             "https://m.soundcloud.com/",

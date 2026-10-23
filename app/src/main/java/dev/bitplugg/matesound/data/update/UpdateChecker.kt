@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import dev.bitplugg.matesound.BuildConfig
+import dev.bitplugg.matesound.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -147,6 +148,7 @@ class UpdateManager(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !context.packageManager.canRequestPackageInstalls()
         ) {
+            _state.update { it.copy(error = context.getString(R.string.update_unknown_sources)) }
             runCatching {
                 context.startActivity(
                     Intent(

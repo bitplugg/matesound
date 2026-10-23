@@ -98,6 +98,9 @@ class SoundCloudApi(
     private suspend fun perform(method: String, url: HttpUrl): okhttp3.Response {
         val token = prefs.token()
         val finalUrl = url.newBuilder().apply {
+            if (url.queryParameter("client_id") == null) {
+                addQueryParameter("client_id", clientIds.get())
+            }
             if (token != null && url.queryParameter("oauth_token") == null) {
                 addQueryParameter("oauth_token", token)
             }
