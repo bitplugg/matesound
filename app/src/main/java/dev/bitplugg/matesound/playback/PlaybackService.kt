@@ -80,11 +80,13 @@ class PlaybackService : MediaSessionService() {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 consecutiveErrors++
-                if (consecutiveErrors <= MAX_AUTO_SKIPS &&
-                    player.currentMediaItemIndex < player.mediaItemCount - 1
-                ) {
+                if (consecutiveErrors <= MAX_AUTO_SKIPS) {
                     runCatching {
-                        player.seekToNextMediaItem()
+                        if (player.currentMediaItemIndex < player.mediaItemCount - 1) {
+                            player.seekToNextMediaItem()
+                        } else if (player.mediaItemCount > 0) {
+                            player.seekToDefaultPosition(0)
+                        }
                         player.prepare()
                         player.play()
                     }
@@ -94,6 +96,15 @@ class PlaybackService : MediaSessionService() {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
                     consecutiveErrors = 0
+                }
+                if (playbackState == Player.STATE_ENDED) {
+                    runCatching {
+                        if (player.repeatMode == Player.REPEAT_MODE_ONE) {
+                            player.seekToDefaultPosition(0)
+                            player.prepare()
+                            player.play()
+                        }
+                    }
                 }
             }
         })

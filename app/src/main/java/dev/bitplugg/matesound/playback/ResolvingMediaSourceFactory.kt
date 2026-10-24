@@ -47,7 +47,7 @@ class ResolvingMediaSourceFactory(
             if (id != null) {
                 val resolved = runCatching { resolver(id) }.getOrNull()
                 if (resolved != null) {
-                    val played = mediaItem.buildUpon().setUri(resolved.first).build()
+                    val played = mediaItem.buildUpon().setUri(Uri.parse(resolved.first)).build()
                     return if (resolved.second) {
                         hlsFactory.createMediaSource(played)
                     } else {
