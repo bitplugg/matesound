@@ -72,7 +72,9 @@ fun HomeScreen(
 
         Box(Modifier.fillMaxSize()) {
             when {
-                state.loading && state.tracks.isEmpty() -> LoadingBox()
+                state.loading && state.tracks.isEmpty() -> Column(Modifier.fillMaxSize()) {
+                    repeat(6) { dev.bitplugg.matesound.ui.TrackRowShimmer() }
+                }
 
                 state.error != null && state.tracks.isEmpty() -> EmptyState(
                     icon = Icons.Rounded.CloudOff,

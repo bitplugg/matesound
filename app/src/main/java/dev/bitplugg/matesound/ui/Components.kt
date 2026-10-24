@@ -2,6 +2,7 @@ package dev.bitplugg.matesound.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,11 +23,13 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,14 +38,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import dev.bitplugg.matesound.data.model.DownloadedTrack
@@ -49,6 +62,8 @@ import dev.bitplugg.matesound.data.model.ScPlaylist
 import dev.bitplugg.matesound.data.model.ScTrack
 import dev.bitplugg.matesound.data.model.ScUser
 import dev.bitplugg.matesound.playback.PlayerUiState
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun Artwork(
@@ -228,6 +243,9 @@ fun MiniPlayer(
     isLiked: Boolean,
     onToggle: () -> Unit,
     onNext: () -> Unit,
+    onPrevious: () -> Unit = {},
+    onLike: (() -> Unit)? = null,
+    onOpenQueue: (() -> Unit)? = null,
     onOpen: () -> Unit,
 ) {
     val fraction = if (state.durationMs > 0) {
@@ -235,6 +253,8 @@ fun MiniPlayer(
     } else {
         0f
     }
+    val haptic = LocalHapticFeedback.current
+    var offsetX by remember { mutableStateOf(0f) }
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
         Column {
             LinearProgressIndicator(
@@ -247,6 +267,26 @@ fun MiniPlayer(
                 Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onOpen)
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (offsetX > 120f) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onPrevious()
+                                } else if (offsetX < -120f) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onNext()
+                                }
+                                offsetX = 0f
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                offsetX += dragAmount
+                            },
+                        )
+                    }
+                    .offset { IntOffset(offsetX.roundToInt(), 0) }
+                    .graphicsLayer { alpha = (1f - abs(offsetX) / 400f).coerceIn(0.8f, 1f) }
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -267,6 +307,18 @@ fun MiniPlayer(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (onLike != null) {
+                    IconButton(onClick = onLike) {
+                        Icon(
+                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                IconButton(onClick = onPrevious) {
+                    Icon(Icons.Rounded.SkipPrevious, contentDescription = null)
+                }
                 IconButton(onClick = onToggle) {
                     Icon(
                         imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
@@ -275,6 +327,11 @@ fun MiniPlayer(
                 }
                 IconButton(onClick = onNext) {
                     Icon(Icons.Rounded.SkipNext, contentDescription = null)
+                }
+                if (onOpenQueue != null) {
+                    IconButton(onClick = onOpenQueue) {
+                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = null)
+                    }
                 }
             }
         }

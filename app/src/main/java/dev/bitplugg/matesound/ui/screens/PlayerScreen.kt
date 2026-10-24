@@ -2,7 +2,11 @@ package dev.bitplugg.matesound.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -20,8 +25,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.Bedtime
@@ -114,12 +128,69 @@ fun PlayerScreen(onClose: () -> Unit) {
     val duration = state.durationMs.coerceAtLeast(1L).toFloat()
     val sliderValue = (if (dragging) dragValue else state.positionMs.toFloat()).coerceIn(0f, duration)
 
+    var verticalOffset by remember { mutableStateOf(0f) }
+    var horizontalOffset by remember { mutableStateOf(0f) }
+    val haptic = LocalHapticFeedback.current
+
+    var seekFeedback by remember { mutableStateOf<Pair<Int, Long>?>(null) }
+    LaunchedEffect(seekFeedback) {
+        if (seekFeedback != null) {
+            kotlinx.coroutines.delay(650)
+            seekFeedback = null
+        }
+    }
+
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 20.dp)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            if (verticalOffset > 200f) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onClose()
+                            }
+                            verticalOffset = 0f
+                            horizontalOffset = 0f
+                        },
+                        onVerticalDrag = { change, dragAmount ->
+                            change.consume()
+                            if (kotlin.math.abs(horizontalOffset) < 40f) {
+                                verticalOffset += dragAmount
+                            }
+                        },
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (kotlin.math.abs(verticalOffset) < 60f) {
+                                if (horizontalOffset > 160f) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    player.previous()
+                                } else if (horizontalOffset < -160f) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    player.next()
+                                }
+                            }
+                            verticalOffset = 0f
+                            horizontalOffset = 0f
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            if (kotlin.math.abs(verticalOffset) < 40f) {
+                                horizontalOffset += dragAmount
+                            }
+                        },
+                    )
+                }
+                .offset { IntOffset(horizontalOffset.roundToInt(), (verticalOffset * 0.25f).roundToInt()) }
+                .graphicsLayer {
+                    alpha = (1f - verticalOffset / 700f).coerceIn(0.7f, 1f)
+                },
         ) {
             Row(
                 Modifier
@@ -157,11 +228,50 @@ fun PlayerScreen(onClose: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 val artworkSide = minOf(maxWidth, maxHeight - 8.dp).coerceAtLeast(96.dp)
-                Artwork(
-                    url = state.artwork,
-                    size = artworkSide,
-                    corner = 20.dp,
-                )
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(artworkSide)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = { offset ->
+                                    val isLeft = offset.x < artworkSide.toPx() / 2
+                                    val delta = if (isLeft) -10_000L else 10_000L
+                                    player.seekBy(delta)
+                                    seekFeedback = if (isLeft) Pair(-1, -10_000L) else Pair(1, 10_000L)
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                },
+                            )
+                        },
+                ) {
+                    Artwork(
+                        url = state.artwork,
+                        size = artworkSide,
+                        corner = 20.dp,
+                    )
+                    seekFeedback?.let { (dir, _) ->
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
+                            contentAlignment = if (dir < 0) Alignment.CenterStart else Alignment.CenterEnd,
+                        ) {
+                            Text(
+                                text = if (dir < 0) "-10с" else "+10с",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier
+                                    .padding(horizontal = 24.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                        androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                                    )
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -191,30 +301,56 @@ fun PlayerScreen(onClose: () -> Unit) {
             }
 
             Spacer(Modifier.height(8.dp))
-            Slider(
-                value = sliderValue,
-                onValueChange = {
-                    dragging = true
-                    dragValue = it
-                },
-                onValueChangeFinished = {
-                    player.seekTo(dragValue.toLong())
-                    dragging = false
-                },
-                valueRange = 0f..duration,
-            )
-            Row(Modifier.fillMaxWidth()) {
-                Text(
-                    text = formatDuration(if (dragging) dragValue.toLong() else state.positionMs),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .padding(horizontal = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val bars = 40
+                    repeat(bars) { i ->
+                        val progress = if (duration > 0) sliderValue / duration else 0f
+                        val active = (i.toFloat() / bars) <= progress
+                        val hVal = if (active) 14 + (i % 5) * 4 else 8 + (i % 4) * 3
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .height(hVal.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(
+                                    if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                ),
+                        )
+                    }
+                }
+                Slider(
+                    value = sliderValue,
+                    onValueChange = {
+                        dragging = true
+                        dragValue = it
+                    },
+                    onValueChangeFinished = {
+                        player.seekTo(dragValue.toLong())
+                        dragging = false
+                    },
+                    valueRange = 0f..duration,
                 )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = formatDuration(state.durationMs),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(Modifier.fillMaxWidth()) {
+                    Text(
+                        text = formatDuration(if (dragging) dragValue.toLong() else state.positionMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = formatDuration(state.durationMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -412,13 +548,28 @@ private enum class PlayerSheet { Queue, Speed, Sleep, Equalizer }
 
 @Composable
 private fun QueueSheet(state: PlayerUiState, onSelect: (Int) -> Unit) {
+    val container = LocalAppContainer.current
+    val haptic = LocalHapticFeedback.current
     Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-        Text(
-            text = stringResource(R.string.player_queue),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(16.dp),
-        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.player_queue),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                container.player.clearQueue()
+            }) {
+                Text("Очистить")
+            }
+        }
         LazyColumn(Modifier.fillMaxWidth()) {
             itemsIndexed(state.queue) { index, item ->
                 Row(
@@ -457,6 +608,12 @@ private fun QueueSheet(state: PlayerUiState, onSelect: (Int) -> Unit) {
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                    }
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        container.player.removeQueueItem(index)
+                    }) {
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null)
                     }
                 }
             }
