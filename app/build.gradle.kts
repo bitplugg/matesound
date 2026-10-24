@@ -15,8 +15,8 @@ android {
         applicationId = "dev.bitplugg.matesound"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.2.0"
+        versionCode = 5
+        versionName = "1.3.0"
         vectorDrawables.useSupportLibrary = true
     }
 
@@ -26,24 +26,31 @@ android {
     }
 
     signingConfigs {
-        // Throwaway app signing key committed on purpose: every CI run must
-        // produce APKs with the same signature, otherwise OTA updates can not
-        // be installed over the previous version.
         create("matesound") {
-            storeFile = rootProject.file("keystore/matesound.jks")
-            storePassword = "matesound"
-            keyAlias = "matesound"
-            keyPassword = "matesound"
+            val keystorePath = System.getenv("MATESOUND_KEYSTORE_PATH") ?: rootProject.file("keystore/matesound.jks").absolutePath
+            val storeFilePath = file(keystorePath)
+            if (storeFilePath.exists()) {
+                storeFile = storeFilePath
+                storePassword = System.getenv("MATESOUND_KEYSTORE_PASSWORD") ?: "matesound"
+                keyAlias = System.getenv("MATESOUND_KEY_ALIAS") ?: "matesound"
+                keyPassword = System.getenv("MATESOUND_KEY_PASSWORD") ?: "matesound"
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("matesound")
+            val matesoundConfig = signingConfigs.findByName("matesound")
+            if (matesoundConfig?.storeFile?.exists() == true) {
+                signingConfig = matesoundConfig
+            }
             versionNameSuffix = "-debug"
         }
         release {
-            signingConfig = signingConfigs.getByName("matesound")
+            val matesoundConfig = signingConfigs.findByName("matesound")
+            if (matesoundConfig?.storeFile?.exists() == true) {
+                signingConfig = matesoundConfig
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

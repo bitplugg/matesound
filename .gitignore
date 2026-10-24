@@ -12,7 +12,8 @@
 local.properties
 *.jks
 *.keystore
+!keystore/.gitkeep
 /app/release/
-
-# Public throwaway signing key used by CI (needed for stable OTA updates)
+keystore/*
 !keystore/matesound.jks
+!keystore/.gitkeep

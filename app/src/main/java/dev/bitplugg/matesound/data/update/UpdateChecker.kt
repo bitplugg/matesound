@@ -145,6 +145,24 @@ class UpdateManager(
      */
     fun install() {
         val file = _state.value.apkFile ?: return
+        if (!file.exists() || file.length() == 0L) {
+            _state.update { it.copy(error = "invalid file") }
+            return
+        }
+        // Basic package verification
+        val pm = context.packageManager
+        val pkgInfo = runCatching {
+            if (Build.VERSION.SDK_INT >= 33) {
+                pm.getPackageArchiveInfo(file.absolutePath, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageArchiveInfo(file.absolutePath, 0)
+            }
+        }.getOrNull()
+        if (pkgInfo?.packageName != context.packageName) {
+            _state.update { it.copy(error = "Package mismatch") }
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !context.packageManager.canRequestPackageInstalls()
         ) {
@@ -192,9 +210,13 @@ class UpdateManager(
         target: File,
         onProgress: (Float) -> Unit,
     ) = withContext(Dispatchers.IO) {
+        if (!url.startsWith("https://")) error("invalid url")
+        val host = runCatching { Uri.parse(url).host?.lowercase() }.getOrNull().orEmpty()
+        if (host != "github.com" && host != "objects.githubusercontent.com") error("untrusted host")
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", USER_AGENT)
+            .header("Accept", "application/octet-stream")
             .build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
@@ -213,6 +235,10 @@ class UpdateManager(
                     }
                 }
             }
+        }
+        if (target.length() == 0L) {
+            target.delete()
+            error("empty download")
         }
         onProgress(1f)
     }
@@ -233,11 +259,17 @@ class UpdateManager(
             }.getOrNull() ?: return@withContext null
             if (release.draft || release.prerelease) return@withContext null
             val asset = release.assets.firstOrNull { it.name == "app-debug.apk" }
+                ?: release.assets.firstOrNull { it.name == "app-release.apk" }
                 ?: release.assets.firstOrNull {
-                    it.name.endsWith(".apk", ignoreCase = true) &&
-                        !it.name.contains("unsigned", ignoreCase = true)
+                    val n = it.name.lowercase()
+                    n.endsWith(".apk") && !n.contains("unsigned")
                 }
                 ?: return@withContext null
+            if (!isAllowedAssetName(asset.name)) return@withContext null
+            if (!asset.downloadUrl.startsWith("https://")) return@withContext null
+            val host = runCatching { Uri.parse(asset.downloadUrl).host?.lowercase() }.getOrNull().orEmpty()
+            if (host != "github.com" && host != "objects.githubusercontent.com") return@withContext null
+            if (asset.size > 0 && asset.size > 200L * 1024 * 1024) return@withContext null
             UpdateInfo(
                 version = release.tagName.removePrefix("v"),
                 tag = release.tagName,
@@ -247,6 +279,13 @@ class UpdateManager(
                 releaseUrl = release.htmlUrl,
             )
         }
+    }
+
+    private fun isAllowedAssetName(name: String): Boolean {
+        if (name.isBlank()) return false
+        if (name.contains("..") || name.contains("/") || name.contains("\\\\")) return false
+        val n = name.lowercase()
+        return n.endsWith(".apk")
     }
 
     companion object {

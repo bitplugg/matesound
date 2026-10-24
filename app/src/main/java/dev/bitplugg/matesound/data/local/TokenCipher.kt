@@ -23,7 +23,7 @@ object TokenCipher {
 
     fun isEncrypted(value: String?): Boolean = value?.startsWith(PREFIX) == true
 
-    fun encrypt(plain: String): String = runCatching {
+    fun encrypt(plain: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val iv = cipher.iv
@@ -31,12 +31,12 @@ object TokenCipher {
         val packed = ByteArray(iv.size + encrypted.size)
         iv.copyInto(packed)
         encrypted.copyInto(packed, iv.size)
-        PREFIX + Base64.encodeToString(packed, Base64.NO_WRAP)
-    }.getOrDefault(plain)
+        return PREFIX + Base64.encodeToString(packed, Base64.NO_WRAP)
+    }
 
     fun decrypt(stored: String): String? {
         if (!isEncrypted(stored)) return stored
-        return runCatching {
+        return try {
             val packed = Base64.decode(stored.removePrefix(PREFIX), Base64.NO_WRAP)
             if (packed.size <= IV_BYTES) return null
             val iv = packed.copyOfRange(0, IV_BYTES)
@@ -44,7 +44,9 @@ object TokenCipher {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(TAG_BITS, iv))
             String(cipher.doFinal(body), Charsets.UTF_8)
-        }.getOrNull()
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun key(): SecretKey {

@@ -180,13 +180,21 @@ private fun LoginContent(
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): Boolean {
-                                onTokenFromUrl(request.url.toString())
-                                return false
+                                val u = request.url
+                                val host = u.host.orEmpty().lowercase()
+                                if (host.endsWith("soundcloud.com") || host.endsWith("sndcdn.com")) {
+                                    onTokenFromUrl(request.url.toString())
+                                    return false
+                                }
+                                return true
                             }
 
                             override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
-                                onPageFinished()
+                                val host = url?.let { android.net.Uri.parse(it).host.orEmpty().lowercase() }.orEmpty()
+                                if (host.endsWith("soundcloud.com") || host.endsWith("sndcdn.com")) {
+                                    onPageFinished()
+                                }
                             }
                         }
                         loadUrl(AuthUrls.loginPage())

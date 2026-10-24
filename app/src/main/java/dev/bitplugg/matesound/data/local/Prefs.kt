@@ -57,7 +57,12 @@ class Prefs(context: Context) {
                 prefs.remove(Keys.USER_NAME)
                 prefs.remove(Keys.USER_AVATAR)
             } else {
-                prefs[Keys.TOKEN] = TokenCipher.encrypt(token)
+                val encrypted = try {
+                    TokenCipher.encrypt(token)
+                } catch (e: Exception) {
+                    throw e
+                }
+                prefs[Keys.TOKEN] = encrypted
             }
         }
     }

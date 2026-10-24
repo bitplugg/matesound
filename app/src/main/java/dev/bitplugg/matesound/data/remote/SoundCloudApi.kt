@@ -2,6 +2,7 @@ package dev.bitplugg.matesound.data.remote
 
 import dev.bitplugg.matesound.data.local.Prefs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
@@ -66,7 +67,10 @@ class SoundCloudApi(
         url: String,
         params: Map<String, String> = emptyMap(),
     ): String = withContext(Dispatchers.IO) {
-        val parsed = url.toHttpUrlOrNull() ?: throw ScApiException(400, "Bad url: $url")
+        val parsed = url.toHttpUrlOrNull() ?: throw ScApiException(400, "Bad url")
+        if (parsed.scheme != "https") throw ScApiException(400, "Untrusted scheme")
+        if (!isTrustedHost(parsed.host)) throw ScApiException(400, "Untrusted host")
+        if (parsed.port != 443 && parsed.port != -1) throw ScApiException(400, "Untrusted port")
         val builder = parsed.newBuilder()
         var hasClientId = parsed.queryParameter("client_id") != null
         for ((key, value) in params) {
@@ -75,12 +79,22 @@ class SoundCloudApi(
         }
         val token = prefs.token()
         if (!hasClientId) builder.addQueryParameter("client_id", clientIds.get())
-        val response = perform("GET", builder.build())
+        val response = perform("GET", builder.build(), allowAuth = token != null)
         response.use {
             if (it.code == 401 || it.code == 403) throw AuthRequiredException()
             if (!it.isSuccessful) throw ScApiException(it.code, "HTTP ${it.code}", it.body?.string())
             it.body?.string().orEmpty()
         }
+    }
+
+    private fun isTrustedHost(host: String): Boolean {
+        val h = host.lowercase()
+        return h == API_HOST ||
+            h == "api.soundcloud.com" ||
+            h == "cf-hls-media.sndcdn.com" ||
+            h == "ec-media.soundcloud.com" ||
+            h.endsWith(".sndcdn.com") ||
+            h.endsWith(".soundcloud.com")
     }
 
     suspend inline fun <reified T> get(
@@ -116,13 +130,17 @@ class SoundCloudApi(
         method: String,
         url: HttpUrl,
         body: okhttp3.RequestBody? = null,
+        allowAuth: Boolean = true,
     ): okhttp3.Response {
-        val token = prefs.token()
+        val token = if (allowAuth) prefs.token() else null
         val finalUrl = url.newBuilder().apply {
             if (url.queryParameter("client_id") == null) {
                 addQueryParameter("client_id", clientIds.get())
             }
         }.build()
+
+        if (!isTrustedHost(finalUrl.host)) throw ScApiException(400, "Untrusted host")
+        if (finalUrl.scheme != "https") throw ScApiException(400, "Untrusted scheme")
 
         val request = Request.Builder()
             .url(finalUrl)
@@ -131,15 +149,15 @@ class SoundCloudApi(
             .header("Accept-Language", "en-US,en;q=0.9")
             .header("Origin", "https://soundcloud.com")
             .header("Referer", "https://soundcloud.com/")
-            .apply { if (token != null) header("Authorization", "OAuth $token") }
+            .apply { if (token != null && isTrustedHost(finalUrl.host)) header("Authorization", "OAuth $token") }
             .method(method, body ?: if (method == "GET" || method == "DELETE") null else EMPTY_BODY)
             .build()
 
         val call = http.newCall(request)
         val response = call.execute()
-        if (response.code >= 500) {
+        if (response.code >= 500 && response.code < 600) {
             response.close()
-            runCatching { Thread.sleep(200) }
+            kotlinx.coroutines.delay(250)
             return http.newCall(request).execute()
         }
         return response
