@@ -43,7 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,6 +54,7 @@ import dev.bitplugg.matesound.data.local.AppSettings
 import dev.bitplugg.matesound.data.model.ScPlaylist
 import dev.bitplugg.matesound.data.model.ScTrack
 import kotlinx.coroutines.launch
+import dev.bitplugg.matesound.data.repo.MusicRepository
 
 class TrackActions(
     val like: (ScTrack) -> Unit,
@@ -98,6 +101,7 @@ fun TrackItem(
     val actions = rememberTrackActions()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
 
     var showMenu by remember { mutableStateOf(false) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
@@ -115,10 +119,22 @@ fun TrackItem(
         isPlaying = playerState.isPlaying,
         isLiked = library.likes.any { it.id == track.id },
         isDownloaded = downloaded,
-        onClick = onClick,
-        onLike = { actions.like(track) },
-        onDownload = { actions.download(track) },
-        onMore = { showMenu = true },
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        onLike = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            actions.like(track)
+        },
+        onDownload = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            actions.download(track)
+        },
+        onMore = {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            showMenu = true
+        },
     )
 
     fun toast(message: String) {
@@ -134,11 +150,22 @@ fun TrackItem(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 )
                 MenuRow(Icons.Rounded.PlaylistPlay, stringResource(R.string.play_next)) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     container.player.playNext(track)
                     showMenu = false
                 }
                 MenuRow(Icons.Rounded.QueueMusic, stringResource(R.string.add_to_queue)) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     container.player.addToQueue(track)
+                    showMenu = false
+                }
+                MenuRow(Icons.Rounded.QueueMusic, "Радио по треку") {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    scope.launch {
+                        val related = runCatching { container.repository.relatedTracks(track.id, 50) }.getOrDefault(emptyList())
+                        val list = (listOf(track) + related).distinctBy { it.id }.filter { it.id != 0L }
+                        container.player.play(list, 0)
+                    }
                     showMenu = false
                 }
                 MenuRow(Icons.Rounded.PlaylistAdd, stringResource(R.string.add_to_playlist)) {
