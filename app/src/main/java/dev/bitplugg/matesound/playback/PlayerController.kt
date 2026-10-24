@@ -366,23 +366,39 @@ class PlayerController(
                 artwork = item.mediaMetadata.artworkUri?.toString(),
             )
         }
-        _state.update {
-            it.copy(
-                connected = true,
-                isPlaying = mediaController.isPlaying,
-                isBuffering = mediaController.playbackState == Player.STATE_BUFFERING,
-                mediaId = mediaItem?.mediaId?.toLongOrNull(),
-                title = metadata?.title?.toString().orEmpty(),
-                artist = metadata?.artist?.toString().orEmpty(),
-                artwork = metadata?.artworkUri?.toString(),
-                positionMs = mediaController.currentPosition.coerceAtLeast(0L),
-                durationMs = mediaController.duration.coerceAtLeast(0L),
-                shuffle = mediaController.shuffleModeEnabled,
-                repeatMode = mediaController.repeatMode,
-                speed = mediaController.playbackParameters.speed,
-                queue = queue,
-                currentIndex = mediaController.currentMediaItemIndex,
-            )
+        val s = PlayerUiState(
+            connected = true,
+            isPlaying = mediaController.isPlaying,
+            isBuffering = mediaController.playbackState == Player.STATE_BUFFERING,
+            mediaId = mediaItem?.mediaId?.toLongOrNull(),
+            title = metadata?.title?.toString().orEmpty(),
+            artist = metadata?.artist?.toString().orEmpty(),
+            artwork = metadata?.artworkUri?.toString(),
+            positionMs = mediaController.currentPosition.coerceAtLeast(0L),
+            durationMs = mediaController.duration.coerceAtLeast(0L),
+            shuffle = mediaController.shuffleModeEnabled,
+            repeatMode = mediaController.repeatMode,
+            speed = mediaController.playbackParameters.speed,
+            queue = queue,
+            currentIndex = mediaController.currentMediaItemIndex,
+        )
+        _state.value = s
+        saveWidgetState(s)
+    }
+
+    private fun saveWidgetState(s: PlayerUiState) {
+        runCatching {
+            val prefs = context.getSharedPreferences("matesound_widget", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putLong("mediaId", s.mediaId ?: -1L)
+                .putString("title", s.title)
+                .putString("artist", s.artist)
+                .putString("artwork", s.artwork)
+                .putBoolean("playing", s.isPlaying)
+                .putLong("pos", s.positionMs)
+                .putLong("dur", s.durationMs)
+                .apply()
+            dev.bitplugg.matesound.widget.PlayerWidgetProvider.updateAll(context)
         }
     }
 
