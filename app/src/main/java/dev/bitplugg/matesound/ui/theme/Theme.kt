@@ -1,104 +1,96 @@
 package dev.bitplugg.matesound.ui.theme
 
+import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import android.os.Build
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.bitplugg.matesound.data.model.ThemeMode
+import androidx.core.view.WindowCompat
+import dev.bitplugg.matesound.data.local.AccentStyle
 
-private val Orange = Color(0xFFFF5C00)
-private val OrangeBright = Color(0xFFFF7A2A)
-private val Coral = Color(0xFFFF8F5C)
-
-val MatesoundDarkColors = darkColorScheme(
-    primary = OrangeBright,
-    onPrimary = Color(0xFF1A0A00),
-    primaryContainer = Color(0xFF4A1900),
-    onPrimaryContainer = Color(0xFFFFDBCC),
-    secondary = Coral,
-    onSecondary = Color(0xFF1A0A00),
-    tertiary = Color(0xFFFFB99C),
-    onTertiary = Color(0xFF2A1100),
-    background = Color(0xFF0A0A0C),
-    onBackground = Color(0xFFF2F1F4),
-    surface = Color(0xFF101014),
-    onSurface = Color(0xFFF2F1F4),
-    surfaceVariant = Color(0xFF23232A),
-    onSurfaceVariant = Color(0xFFB9B9C3),
-    surfaceContainer = Color(0xFF151519),
-    surfaceContainerHigh = Color(0xFF1B1B22),
-    surfaceContainerHighest = Color(0xFF23232B),
-    inverseSurface = Color(0xFFF2F1F4),
-    inverseOnSurface = Color(0xFF101014),
-    outline = Color(0xFF3D3D48),
-    outlineVariant = Color(0xFF2A2A33),
-    error = Color(0xFFFF7A6C),
+private val DarkColorScheme = darkColorScheme()
+private val LightColorScheme = lightColorScheme()
+private val AmoledColorScheme = darkColorScheme(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceContainer = Color.Black,
+    surfaceContainerLow = Color.Black,
+    surfaceContainerHigh = Color(0xFF101010),
 )
 
-val MatesoundLightColors = lightColorScheme(
-    primary = Color(0xFFCC4C00),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFFFE0D0),
-    onPrimaryContainer = Color(0xFF3A1000),
-    secondary = Color(0xFFB33F00),
-    onSecondary = Color.White,
-    tertiary = Color(0xFF7A2F00),
-    onTertiary = Color.White,
-    background = Color(0xFFFCFBFF),
-    onBackground = Color(0xFF1B1B1F),
-    surface = Color(0xFFFCFBFF),
-    onSurface = Color(0xFF1B1B1F),
-    surfaceVariant = Color(0xFFF3F1F6),
-    onSurfaceVariant = Color(0xFF5C5C66),
-    surfaceContainer = Color(0xFFF7F6FA),
-    surfaceContainerHigh = Color(0xFFF1EFF4),
-    surfaceContainerHighest = Color(0xFFECEAF0),
-    outline = Color(0xFFC7C5D0),
+data class MateShapes(
+    val cornerRadius: Dp = 16.dp,
 )
 
-val MatesoundShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(36.dp),
-)
-
-val MatesoundTypography = Typography()
+val LocalMateShapes = staticCompositionLocalOf { MateShapes() }
+val LocalAmoled = staticCompositionLocalOf { false }
+val LocalGlass = staticCompositionLocalOf { false }
 
 @Composable
 fun MateSoundTheme(
-    themeMode: ThemeMode,
+    themeMode: dev.bitplugg.matesound.data.model.ThemeMode = dev.bitplugg.matesound.data.model.ThemeMode.DARK,
     dynamicColor: Boolean = true,
+    accentStyle: AccentStyle = AccentStyle.DYNAMIC,
+    cornerRadius: Int = 16,
+    amoledBlack: Boolean = false,
+    glassEffect: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val dark = when (themeMode) {
-        ThemeMode.DARK -> true
-        ThemeMode.LIGHT -> false
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-    }
     val context = LocalContext.current
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        dark -> MatesoundDarkColors
-        else -> MatesoundLightColors
+    val darkTheme = when (themeMode) {
+        dev.bitplugg.matesound.data.model.ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        dev.bitplugg.matesound.data.model.ThemeMode.DARK -> true
+        dev.bitplugg.matesound.data.model.ThemeMode.LIGHT -> false
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        shapes = MatesoundShapes,
-        typography = MatesoundTypography,
-        content = content,
-    )
+
+    val colorScheme = when {
+        darkTheme && amoledBlack -> AmoledColorScheme
+        accentStyle == AccentStyle.DYNAMIC && dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        accentStyle == AccentStyle.BLUE -> if (darkTheme) darkColorScheme(primary = Color(0xFF8AB4FF), secondary = Color(0xFF8AB4FF)) else lightColorScheme(primary = Color(0xFF1A73E8))
+        accentStyle == AccentStyle.PURPLE -> if (darkTheme) darkColorScheme(primary = Color(0xFFD0BCFF), secondary = Color(0xFFD0BCFF)) else lightColorScheme(primary = Color(0xFF6750A4))
+        accentStyle == AccentStyle.PINK -> if (darkTheme) darkColorScheme(primary = Color(0xFFF6B8D1), secondary = Color(0xFFF6B8D1)) else lightColorScheme(primary = Color(0xFFB71C5C))
+        accentStyle == AccentStyle.ORANGE -> if (darkTheme) darkColorScheme(primary = Color(0xFFFFB77C), secondary = Color(0xFFFFB77C)) else lightColorScheme(primary = Color(0xFFE65100))
+        accentStyle == AccentStyle.GREEN -> if (darkTheme) darkColorScheme(primary = Color(0xFF81C995), secondary = Color(0xFF81C995)) else lightColorScheme(primary = Color(0xFF2E7D32))
+        accentStyle == AccentStyle.TEAL -> if (darkTheme) darkColorScheme(primary = Color(0xFF4DD0E1), secondary = Color(0xFF4DD0E1)) else lightColorScheme(primary = Color(0xFF00695C))
+        accentStyle == AccentStyle.RED -> if (darkTheme) darkColorScheme(primary = Color(0xFFF28B82), secondary = Color(0xFFF28B82)) else lightColorScheme(primary = Color(0xFFD93025))
+        else -> if (darkTheme) DarkColorScheme else LightColorScheme
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = Color.Transparent.toArgb()
+            window.navigationBarColor = Color.Transparent.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+        }
+    }
+
+    CompositionLocalProvider(
+        LocalMateShapes provides MateShapes(cornerRadius = cornerRadius.dp),
+        LocalAmoled provides (darkTheme && amoledBlack),
+        LocalGlass provides glassEffect,
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = androidx.compose.material3.Typography(),
+            content = content,
+        )
+    }
 }

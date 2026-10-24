@@ -461,6 +461,21 @@ class SettingsViewModel(
     fun setAutoplayRelated(enabled: Boolean) =
         viewModelScope.launch { prefs.setAutoplayRelated(enabled) }
 
+    fun setAmoledBlack(enabled: Boolean) = viewModelScope.launch { prefs.setAmoledBlack(enabled) }
+    fun setCardStyle(value: dev.bitplugg.matesound.data.local.CardStyle) = viewModelScope.launch { prefs.setCardStyle(value) }
+    fun setLibraryGridMode(value: dev.bitplugg.matesound.data.local.ListGridMode) = viewModelScope.launch { prefs.setLibraryGridMode(value) }
+    fun setPlaylistsGridMode(value: dev.bitplugg.matesound.data.local.ListGridMode) = viewModelScope.launch { prefs.setPlaylistsGridMode(value) }
+    fun setNavStyle(value: dev.bitplugg.matesound.data.local.NavStyle) = viewModelScope.launch { prefs.setNavStyle(value) }
+    fun setTrackRowStyle(value: dev.bitplugg.matesound.data.local.TrackRowStyle) = viewModelScope.launch { prefs.setTrackRowStyle(value) }
+    fun setShowTrackDuration(enabled: Boolean) = viewModelScope.launch { prefs.setShowTrackDuration(enabled) }
+    fun setTransparentMiniPlayer(enabled: Boolean) = viewModelScope.launch { prefs.setTransparentMiniPlayer(enabled) }
+    fun setProgressBarStyle(value: dev.bitplugg.matesound.data.local.ProgressBarStyle) = viewModelScope.launch { prefs.setProgressBarStyle(value) }
+    fun setPlayerBgStyle(value: dev.bitplugg.matesound.data.local.PlayerBgStyle) = viewModelScope.launch { prefs.setPlayerBgStyle(value) }
+    fun setGlassEffect(enabled: Boolean) = viewModelScope.launch { prefs.setGlassEffect(enabled) }
+    fun setCoverGlow(enabled: Boolean) = viewModelScope.launch { prefs.setCoverGlow(enabled) }
+    fun toggleHideBlock(block: dev.bitplugg.matesound.data.local.HomeBlock, hide: Boolean) = viewModelScope.launch { prefs.toggleHideBlock(block, hide) }
+
+
     fun clearDownloads() = viewModelScope.launch { downloads.deleteAll() }
 
     fun saveToken(token: String) = viewModelScope.launch { auth.saveToken(token) }

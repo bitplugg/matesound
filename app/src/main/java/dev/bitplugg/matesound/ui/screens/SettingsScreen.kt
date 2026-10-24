@@ -109,6 +109,7 @@ fun SettingsScreen(
     var accountExpanded by remember { mutableStateOf(true) }
     var playbackExpanded by remember { mutableStateOf(true) }
     var appearanceExpanded by remember { mutableStateOf(false) }
+    var customizationExpanded by remember { mutableStateOf(false) }
     var storageExpanded by remember { mutableStateOf(false) }
     var advancedExpanded by remember { mutableStateOf(false) }
     var updatesExpanded by remember { mutableStateOf(true) }
@@ -268,6 +269,126 @@ fun SettingsScreen(
                     selected = settings.language,
                     onSelect = vm::setLanguage,
                 )
+            }
+        }
+
+
+        item {
+            SettingsCard(
+                title = "Кастомизация+",
+                expanded = customizationExpanded,
+                onToggle = { customizationExpanded = !customizationExpanded },
+            ) {
+                SettingsSwitchRow(
+                    title = "AMOLED чёрный",
+                    subtitle = "Чистый чёрный фон в тёмной теме",
+                    checked = settings.amoledBlack,
+                    onCheckedChange = vm::setAmoledBlack,
+                )
+                SettingsOptionsGroup(
+                    title = "Стиль карточек",
+                    options = listOf(
+                        dev.bitplugg.matesound.data.local.CardStyle.FILLED to "Заполненные",
+                        dev.bitplugg.matesound.data.local.CardStyle.OUTLINED to "С обводкой",
+                        dev.bitplugg.matesound.data.local.CardStyle.ELEVATED to "Возвышенные",
+                    ),
+                    selected = settings.cardStyle,
+                    onSelect = vm::setCardStyle,
+                )
+                SettingsOptionsGroup(
+                    title = "Сетка плейлистов",
+                    options = listOf(
+                        dev.bitplugg.matesound.data.local.ListGridMode.LIST to "Список",
+                        dev.bitplugg.matesound.data.local.ListGridMode.GRID2 to "Сетка 2х",
+                        dev.bitplugg.matesound.data.local.ListGridMode.GRID3 to "Сетка 3х",
+                    ),
+                    selected = settings.playlistsGridMode,
+                    onSelect = vm::setPlaylistsGridMode,
+                )
+                SettingsOptionsGroup(
+                    title = "Сетка библиотеки",
+                    options = listOf(
+                        dev.bitplugg.matesound.data.local.ListGridMode.LIST to "Список",
+                        dev.bitplugg.matesound.data.local.ListGridMode.GRID2 to "Сетка 2х",
+                        dev.bitplugg.matesound.data.local.ListGridMode.GRID3 to "Сетка 3х",
+                    ),
+                    selected = settings.libraryGridMode,
+                    onSelect = vm::setLibraryGridMode,
+                )
+                SettingsOptionsGroup(
+                    title = "Нижняя навигация",
+                    options = listOf(
+                        dev.bitplugg.matesound.data.local.NavStyle.TEXT_ICON to "Текст + иконки",
+                        dev.bitplugg.matesound.data.local.NavStyle.ICON_ONLY to "Только иконки",
+                    ),
+                    selected = settings.navStyle,
+                    onSelect = vm::setNavStyle,
+                )
+                SettingsOptionsGroup(
+                    title = "Вид строки трека",
+                    options = listOf(
+                        dev.bitplugg.matesound.data.local.TrackRowStyle.CLASSIC to "Классика",
+                        dev.bitplugg.matesound.data.local.TrackRowStyle.SINGLE_LINE to "Однострочный",
+                        dev.bitplugg.matesound.data.local.TrackRowStyle.WITH_DURATION to "С длительностью",
+                    ),
+                    selected = settings.trackRowStyle,
+                    onSelect = vm::setTrackRowStyle,
+                )
+                SettingsSwitchRow(
+                    title = "Показывать длительность",
+                    subtitle = null,
+                    checked = settings.showTrackDuration,
+                    onCheckedChange = vm::setShowTrackDuration,
+                )
+                SettingsOptionsGroup(
+                    title = "Прогресс-бар",
+                    options = listOf(
+                        dev.bitplugg.matesound.data.local.ProgressBarStyle.CLASSIC to "Классика",
+                        dev.bitplugg.matesound.data.local.ProgressBarStyle.THIN to "Тонкий",
+                        dev.bitplugg.matesound.data.local.ProgressBarStyle.ROUNDED to "Скруглённый",
+                        dev.bitplugg.matesound.data.local.ProgressBarStyle.PULSING to "Пульсирующий",
+                    ),
+                    selected = settings.progressBarStyle,
+                    onSelect = vm::setProgressBarStyle,
+                )
+                SettingsOptionsGroup(
+                    title = "Фон плеера",
+                    options = listOf(
+                        dev.bitplugg.matesound.data.local.PlayerBgStyle.DEFAULT to "По умолчанию",
+                        dev.bitplugg.matesound.data.local.PlayerBgStyle.BLUR_COVER to "Размытие обложки",
+                        dev.bitplugg.matesound.data.local.PlayerBgStyle.GRADIENT_COVER to "Градиент из обложки",
+                        dev.bitplugg.matesound.data.local.PlayerBgStyle.ANIMATED_COVER to "Анимированный фон",
+                    ),
+                    selected = settings.playerBgStyle,
+                    onSelect = vm::setPlayerBgStyle,
+                )
+                SettingsSwitchRow(
+                    title = "Прозрачный мини-плеер",
+                    subtitle = null,
+                    checked = settings.transparentMiniPlayer,
+                    onCheckedChange = vm::setTransparentMiniPlayer,
+                )
+                SettingsSwitchRow(
+                    title = "Жидкое стекло (эффект)",
+                    subtitle = "Полупрозрачные панели",
+                    checked = settings.glassEffect,
+                    onCheckedChange = vm::setGlassEffect,
+                )
+                SettingsSwitchRow(
+                    title = "Свечение обложки",
+                    subtitle = "Ореол из доминирующего цвета",
+                    checked = settings.coverGlow,
+                    onCheckedChange = vm::setCoverGlow,
+                )
+                Text(
+                    "Главный экран: скрыть блоки",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                SettingsSwitchRow(title = "Скрыть Тренды", subtitle = null, checked = settings.hideBlocks.contains(dev.bitplugg.matesound.data.local.HomeBlock.TRENDS), onCheckedChange = { vm.toggleHideBlock(dev.bitplugg.matesound.data.local.HomeBlock.TRENDS, it) })
+                SettingsSwitchRow(title = "Скрыть Новое", subtitle = null, checked = settings.hideBlocks.contains(dev.bitplugg.matesound.data.local.HomeBlock.NEW_RELEASES), onCheckedChange = { vm.toggleHideBlock(dev.bitplugg.matesound.data.local.HomeBlock.NEW_RELEASES, it) })
+                SettingsSwitchRow(title = "Скрыть Подписки", subtitle = null, checked = settings.hideBlocks.contains(dev.bitplugg.matesound.data.local.HomeBlock.FOLLOWING_FEED), onCheckedChange = { vm.toggleHideBlock(dev.bitplugg.matesound.data.local.HomeBlock.FOLLOWING_FEED, it) })
+                SettingsSwitchRow(title = "Скрыть Чарты", subtitle = null, checked = settings.hideBlocks.contains(dev.bitplugg.matesound.data.local.HomeBlock.CHARTS), onCheckedChange = { vm.toggleHideBlock(dev.bitplugg.matesound.data.local.HomeBlock.CHARTS, it) })
             }
         }
 

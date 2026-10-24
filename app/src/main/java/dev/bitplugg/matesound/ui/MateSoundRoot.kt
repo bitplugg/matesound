@@ -92,7 +92,7 @@ fun MateSoundRoot() {
         container.updates.check()
     }
 
-    MateSoundTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
+    MateSoundTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor, accentStyle = settings.accentStyle, cornerRadius = settings.cornerRadius, amoledBlack = settings.amoledBlack, glassEffect = settings.glassEffect) {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route
