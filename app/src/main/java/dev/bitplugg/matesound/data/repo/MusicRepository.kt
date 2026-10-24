@@ -105,6 +105,37 @@ class MusicRepository(
 
     suspend fun playlist(id: Long): ScPlaylist = api.get("/playlists/$id")
 
+    suspend fun playlistTracks(id: Long, limit: Int = 50): List<ScTrack> {
+        val all = mutableListOf<ScTrack>()
+        var next: String? = "/playlists/$id/tracks?limit=$limit&linked_partitioning=1"
+        var guard = 0
+        while (next != null && guard < 50) {
+            guard++
+            val raw = if (next.startsWith("http")) {
+                api.requestAbsolute(next)
+            } else {
+                api.request(next.removePrefix("/"), emptyMap())
+            }
+            all.addAll(parseTrackCollection(raw))
+            val root = runCatching { json.parseToJsonElement(raw).jsonObject }.getOrNull()
+            next = root?.get("next_href")?.jsonPrimitive?.contentOrNull
+            if (next.isNullOrBlank()) break
+        }
+        return all.distinctBy { it.id }
+    }
+
+    suspend fun playlistFull(id: Long): ScPlaylist {
+        val base = playlist(id)
+        val count = base.trackCount ?: 0
+        if (base.tracks.isNotEmpty() && (count == 0 || base.tracks.size >= count)) {
+            return base
+        }
+        val extra = runCatching { playlistTracks(id) }.getOrDefault(emptyList())
+        if (extra.isEmpty()) return base
+        val merged = (base.tracks + extra).distinctBy { it.id }
+        return base.copy(tracks = merged)
+    }
+
     suspend fun relatedTracks(trackId: Long, limit: Int = 20): List<ScTrack> =
         api.get<TrackPage>(
             "/tracks/$trackId/related",

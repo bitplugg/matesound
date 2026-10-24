@@ -605,11 +605,22 @@ class PlaylistViewModel(
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            runCatching { repository.playlist(playlistId) }
+            runCatching { repository.playlistFull(playlistId) }
                 .onSuccess { playlist ->
                     val userId = prefs.current().userId
                     _state.update {
                         it.copy(
+                            loading = false,
+                            playlist = playlist,
+                            tracks = playlist.tracks.filter { track -> track.id != 0L },
+                            isOwner = playlist.user?.id != null && playlist.user.id == userId,
+                        )
+                    }
+                }.recoverCatching { repository.playlist(playlistId) }
+                .onSuccess { playlist ->
+                    val userId = prefs.current().userId
+                    _state.update { current ->
+                        if (current.playlist != null) current else current.copy(
                             loading = false,
                             playlist = playlist,
                             tracks = playlist.tracks.filter { track -> track.id != 0L },

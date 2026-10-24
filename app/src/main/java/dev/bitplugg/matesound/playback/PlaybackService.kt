@@ -46,22 +46,22 @@ class PlaybackService : MediaSessionService() {
             .setMediaSourceFactory(
                 ResolvingMediaSourceFactory(this) { trackId ->
                     runBlocking(Dispatchers.IO) {
-                        val current = container.prefs.current()
-                        val offline = container.library.downloaded(trackId) != null
-                        if (!offline) {
-                            if (current.offlineMode) {
-                                throw IllegalStateException(
-                                    "Offline mode is on — this track is not downloaded",
-                                )
+                        try {
+                            val current = container.prefs.current()
+                            val offline = container.library.downloaded(trackId) != null
+                            if (!offline) {
+                                if (current.offlineMode) {
+                                    throw IllegalStateException("offline")
+                                }
+                                if (current.streamWifiOnly && !isOnUnmeteredNetwork()) {
+                                    throw IllegalStateException("wifi")
+                                }
                             }
-                            if (current.streamWifiOnly && !isOnUnmeteredNetwork()) {
-                                throw IllegalStateException(
-                                    "Wi-Fi only streaming is enabled in Settings",
-                                )
+                            withTimeout(30_000L) {
+                                container.repository.streamUrlById(trackId, quality)
                             }
-                        }
-                        withTimeout(25_000L) {
-                            container.repository.streamUrlById(trackId, quality)
+                        } catch (e: Exception) {
+                            throw e
                         }
                     }
                 },
@@ -80,18 +80,21 @@ class PlaybackService : MediaSessionService() {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 consecutiveErrors++
-                // Do not let one unreachable track kill the whole queue.
                 if (consecutiveErrors <= MAX_AUTO_SKIPS &&
                     player.currentMediaItemIndex < player.mediaItemCount - 1
                 ) {
-                    player.seekToNextMediaItem()
-                    player.prepare()
-                    player.play()
+                    runCatching {
+                        player.seekToNextMediaItem()
+                        player.prepare()
+                        player.play()
+                    }
                 }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY) consecutiveErrors = 0
+                if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
+                    consecutiveErrors = 0
+                }
             }
         })
 

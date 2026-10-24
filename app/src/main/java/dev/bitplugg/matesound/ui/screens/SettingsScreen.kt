@@ -7,6 +7,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,7 +24,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CloudOff
@@ -27,15 +34,17 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -97,309 +106,313 @@ fun SettingsScreen(
     val crashFile = remember { File(context.filesDir, MateSoundApp.CRASH_FILE) }
     val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
 
+    var accountExpanded by remember { mutableStateOf(true) }
+    var playbackExpanded by remember { mutableStateOf(true) }
+    var appearanceExpanded by remember { mutableStateOf(false) }
+    var storageExpanded by remember { mutableStateOf(false) }
+    var advancedExpanded by remember { mutableStateOf(false) }
+    var updatesExpanded by remember { mutableStateOf(true) }
+    var aboutExpanded by remember { mutableStateOf(false) }
+
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_settings)) },
-                actions = {
-                    Icon(Icons.Rounded.Palette, contentDescription = null, modifier = Modifier.padding(end = 12.dp))
-                },
             )
         }
 
-        item { SettingsSection(stringResource(R.string.settings_account)) }
-        if (settings.token == null) {
-            item {
+        item {
+            SettingsCard(
+                title = stringResource(R.string.settings_account),
+                expanded = accountExpanded,
+                onToggle = { accountExpanded = !accountExpanded },
+            ) {
+                if (settings.token == null) {
+                    SettingsClickableRow(
+                        title = stringResource(R.string.sign_in),
+                        subtitle = stringResource(R.string.sign_in_card_text),
+                        onClick = {
+                            signInLauncher.launch(Intent(context, AuthWebViewActivity::class.java))
+                        },
+                    )
+                } else {
+                    SettingsClickableRow(
+                        title = settings.userName ?: stringResource(R.string.signed_in),
+                        subtitle = stringResource(R.string.sign_out),
+                        trailingIcon = Icons.AutoMirrored.Rounded.Logout,
+                        onClick = vm::logout,
+                    )
+                }
                 SettingsClickableRow(
-                    title = stringResource(R.string.sign_in),
-                    subtitle = stringResource(R.string.sign_in_card_text),
-                    onClick = {
-                        signInLauncher.launch(Intent(context, AuthWebViewActivity::class.java))
-                    },
+                    title = stringResource(R.string.manual_token),
+                    subtitle = stringResource(R.string.manual_token_hint),
+                    trailingIcon = Icons.Rounded.Key,
+                    onClick = { showTokenDialog = true },
                 )
-            }
-        } else {
-            item {
-                SettingsClickableRow(
-                    title = settings.userName ?: stringResource(R.string.signed_in),
-                    subtitle = stringResource(R.string.sign_out),
-                    trailingIcon = Icons.AutoMirrored.Rounded.Logout,
-                    onClick = vm::logout,
-                )
-            }
-        }
-        item {
-            SettingsClickableRow(
-                title = stringResource(R.string.manual_token),
-                subtitle = stringResource(R.string.manual_token_hint),
-                trailingIcon = Icons.Rounded.Key,
-                onClick = { showTokenDialog = true },
-            )
-        }
-        if (settings.token != null) {
-            item {
-                SettingsClickableRow(
-                    title = stringResource(R.string.copy_token),
-                    subtitle = null,
-                    trailingIcon = Icons.Rounded.ContentCopy,
-                    onClick = {
-                        clipboard?.setPrimaryClip(
-                            ClipData.newPlainText("oauth_token", settings.token),
-                        )
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.token_copied),
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    },
-                )
-            }
-        }
-
-        item { SettingsSection(stringResource(R.string.settings_playback)) }
-        item {
-            SettingsOptionsGroup(
-                title = stringResource(R.string.settings_quality),
-                options = listOf(
-                    Quality.HIGH to stringResource(R.string.quality_high),
-                    Quality.LOW to stringResource(R.string.quality_low),
-                ),
-                selected = settings.quality,
-                onSelect = vm::setQuality,
-            )
-        }
-        item {
-            SettingsSwitchRow(
-                title = stringResource(R.string.player_equalizer),
-                subtitle = stringResource(R.string.eq_hint),
-                checked = settings.equalizerEnabled,
-                onCheckedChange = vm::setEqualizerEnabled,
-                icon = Icons.Rounded.GraphicEq,
-            )
-        }
-        item {
-            SettingsSwitchRow(
-                title = stringResource(R.string.autoplay_related),
-                subtitle = stringResource(R.string.autoplay_related_hint),
-                checked = settings.autoplayRelated,
-                onCheckedChange = vm::setAutoplayRelated,
-            )
-        }
-        item {
-            SettingsSwitchRow(
-                title = stringResource(R.string.stream_wifi_only),
-                subtitle = null,
-                checked = settings.streamWifiOnly,
-                onCheckedChange = vm::setStreamWifiOnly,
-                icon = Icons.Rounded.WifiOff,
-            )
-        }
-        item {
-            SettingsSwitchRow(
-                title = stringResource(R.string.offline_mode),
-                subtitle = stringResource(R.string.offline_mode_hint),
-                checked = settings.offlineMode,
-                onCheckedChange = vm::setOfflineMode,
-                icon = Icons.Rounded.CloudOff,
-            )
-        }
-        item {
-            SettingsSwitchRow(
-                title = stringResource(R.string.auto_download_likes),
-                subtitle = stringResource(R.string.auto_download_likes_hint),
-                checked = settings.autoDownloadLikes,
-                onCheckedChange = vm::setAutoDownloadLikes,
-                icon = Icons.Rounded.Download,
-            )
-        }
-        if (settings.equalizerEnabled) {
-            item {
-                LazyRow(
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(EqualizerPreset.entries) { preset ->
-                        FilterChip(
-                            selected = settings.equalizerPreset == preset,
-                            onClick = { vm.setEqualizerPreset(preset) },
-                            label = { Text(eqLabel(preset)) },
-                        )
-                    }
+                if (settings.token != null) {
+                    SettingsClickableRow(
+                        title = stringResource(R.string.copy_token),
+                        subtitle = null,
+                        trailingIcon = Icons.Rounded.ContentCopy,
+                        onClick = {
+                            clipboard?.setPrimaryClip(
+                                ClipData.newPlainText("oauth_token", settings.token),
+                            )
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.token_copied),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+                    )
                 }
             }
         }
 
-        item { SettingsSection(stringResource(R.string.settings_appearance)) }
         item {
-            SettingsOptionsGroup(
-                title = stringResource(R.string.theme),
-                options = listOf(
-                    ThemeMode.DARK to stringResource(R.string.theme_dark),
-                    ThemeMode.LIGHT to stringResource(R.string.theme_light),
-                    ThemeMode.SYSTEM to stringResource(R.string.theme_system),
-                ),
-                selected = settings.themeMode,
-                onSelect = vm::setTheme,
-            )
-        }
-        item {
-            SettingsSwitchRow(
-                title = stringResource(R.string.material_you),
-                subtitle = stringResource(R.string.material_you_hint),
-                checked = settings.dynamicColor,
-                onCheckedChange = vm::setDynamicColor,
-                icon = Icons.Rounded.Palette,
-            )
-        }
-        item {
-            SettingsOptionsGroup(
-                title = stringResource(R.string.settings_language),
-                options = listOf(
-                    AppLanguage.SYSTEM to stringResource(R.string.lang_system),
-                    AppLanguage.RU to stringResource(R.string.lang_russian),
-                    AppLanguage.EN to stringResource(R.string.lang_english),
-                ),
-                selected = settings.language,
-                onSelect = vm::setLanguage,
-            )
-        }
-
-        item { SettingsSection(stringResource(R.string.settings_storage)) }
-        item {
-            SettingsSwitchRow(
-                title = stringResource(R.string.wifi_only),
-                subtitle = null,
-                checked = settings.downloadWifiOnly,
-                onCheckedChange = vm::setWifiOnly,
-            )
-        }
-        item {
-            SettingsClickableRow(
-                title = stringResource(R.string.clear_history),
-                onClick = vm::clearHistory,
-            )
-        }
-        item {
-            SettingsClickableRow(
-                title = stringResource(R.string.clear_likes),
-                onClick = vm::clearLikes,
-            )
-        }
-        item {
-            SettingsClickableRow(
-                title = stringResource(R.string.clear_downloads),
-                trailingIcon = Icons.Rounded.DeleteSweep,
-                onClick = { confirmClearDownloads = true },
-            )
-        }
-
-        item { SettingsSection(stringResource(R.string.settings_advanced)) }
-        item {
-            SettingsClickableRow(
-                title = stringResource(R.string.refresh_client_id),
-                subtitle = settings.clientId,
-                onClick = vm::refreshClientId,
-            )
-        }
-        if (crashFile.exists()) {
-            item {
-                SettingsClickableRow(
-                    title = stringResource(R.string.crash_log),
-                    subtitle = crashFile.name,
-                    onClick = {
-                        crashText = runCatching { crashFile.readText() }.getOrNull()
-                    },
+            SettingsCard(
+                title = stringResource(R.string.settings_playback),
+                expanded = playbackExpanded,
+                onToggle = { playbackExpanded = !playbackExpanded },
+            ) {
+                SettingsOptionsGroup(
+                    title = stringResource(R.string.settings_quality),
+                    options = listOf(
+                        Quality.HIGH to stringResource(R.string.quality_high),
+                        Quality.LOW to stringResource(R.string.quality_low),
+                    ),
+                    selected = settings.quality,
+                    onSelect = vm::setQuality,
+                )
+                SettingsSwitchRow(
+                    title = stringResource(R.string.player_equalizer),
+                    subtitle = stringResource(R.string.eq_hint),
+                    checked = settings.equalizerEnabled,
+                    onCheckedChange = vm::setEqualizerEnabled,
+                    icon = Icons.Rounded.GraphicEq,
+                )
+                if (settings.equalizerEnabled) {
+                    LazyRow(
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(EqualizerPreset.entries) { preset ->
+                            FilterChip(
+                                selected = settings.equalizerPreset == preset,
+                                onClick = { vm.setEqualizerPreset(preset) },
+                                label = { Text(eqLabel(preset)) },
+                            )
+                        }
+                    }
+                }
+                SettingsSwitchRow(
+                    title = stringResource(R.string.autoplay_related),
+                    subtitle = stringResource(R.string.autoplay_related_hint),
+                    checked = settings.autoplayRelated,
+                    onCheckedChange = vm::setAutoplayRelated,
+                )
+                SettingsSwitchRow(
+                    title = stringResource(R.string.stream_wifi_only),
+                    subtitle = null,
+                    checked = settings.streamWifiOnly,
+                    onCheckedChange = vm::setStreamWifiOnly,
+                    icon = Icons.Rounded.WifiOff,
+                )
+                SettingsSwitchRow(
+                    title = stringResource(R.string.offline_mode),
+                    subtitle = stringResource(R.string.offline_mode_hint),
+                    checked = settings.offlineMode,
+                    onCheckedChange = vm::setOfflineMode,
+                    icon = Icons.Rounded.CloudOff,
+                )
+                SettingsSwitchRow(
+                    title = stringResource(R.string.auto_download_likes),
+                    subtitle = stringResource(R.string.auto_download_likes_hint),
+                    checked = settings.autoDownloadLikes,
+                    onCheckedChange = vm::setAutoDownloadLikes,
+                    icon = Icons.Rounded.Download,
                 )
             }
-            item {
+        }
+
+        item {
+            SettingsCard(
+                title = stringResource(R.string.settings_appearance),
+                expanded = appearanceExpanded,
+                onToggle = { appearanceExpanded = !appearanceExpanded },
+            ) {
+                SettingsOptionsGroup(
+                    title = stringResource(R.string.theme),
+                    options = listOf(
+                        ThemeMode.DARK to stringResource(R.string.theme_dark),
+                        ThemeMode.LIGHT to stringResource(R.string.theme_light),
+                        ThemeMode.SYSTEM to stringResource(R.string.theme_system),
+                    ),
+                    selected = settings.themeMode,
+                    onSelect = vm::setTheme,
+                )
+                SettingsSwitchRow(
+                    title = stringResource(R.string.material_you),
+                    subtitle = stringResource(R.string.material_you_hint),
+                    checked = settings.dynamicColor,
+                    onCheckedChange = vm::setDynamicColor,
+                    icon = Icons.Rounded.Palette,
+                )
+                SettingsOptionsGroup(
+                    title = stringResource(R.string.settings_language),
+                    options = listOf(
+                        AppLanguage.SYSTEM to stringResource(R.string.lang_system),
+                        AppLanguage.RU to stringResource(R.string.lang_russian),
+                        AppLanguage.EN to stringResource(R.string.lang_english),
+                    ),
+                    selected = settings.language,
+                    onSelect = vm::setLanguage,
+                )
+            }
+        }
+
+        item {
+            SettingsCard(
+                title = stringResource(R.string.settings_storage),
+                expanded = storageExpanded,
+                onToggle = { storageExpanded = !storageExpanded },
+            ) {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.wifi_only),
+                    subtitle = null,
+                    checked = settings.downloadWifiOnly,
+                    onCheckedChange = vm::setWifiOnly,
+                )
                 SettingsClickableRow(
-                    title = stringResource(R.string.report_crash),
-                    subtitle = stringResource(R.string.report_crash_hint),
-                    trailingIcon = Icons.Rounded.BugReport,
+                    title = stringResource(R.string.clear_history),
+                    onClick = vm::clearHistory,
+                )
+                SettingsClickableRow(
+                    title = stringResource(R.string.clear_likes),
+                    onClick = vm::clearLikes,
+                )
+                SettingsClickableRow(
+                    title = stringResource(R.string.clear_downloads),
+                    trailingIcon = Icons.Rounded.DeleteSweep,
+                    onClick = { confirmClearDownloads = true },
+                )
+            }
+        }
+
+        item {
+            SettingsCard(
+                title = stringResource(R.string.settings_advanced),
+                expanded = advancedExpanded,
+                onToggle = { advancedExpanded = !advancedExpanded },
+            ) {
+                SettingsClickableRow(
+                    title = stringResource(R.string.refresh_client_id),
+                    subtitle = settings.clientId,
+                    onClick = vm::refreshClientId,
+                )
+                if (crashFile.exists()) {
+                    SettingsClickableRow(
+                        title = stringResource(R.string.crash_log),
+                        subtitle = crashFile.name,
+                        onClick = {
+                            crashText = runCatching { crashFile.readText() }.getOrNull()
+                        },
+                    )
+                    SettingsClickableRow(
+                        title = stringResource(R.string.report_crash),
+                        subtitle = stringResource(R.string.report_crash_hint),
+                        trailingIcon = Icons.Rounded.BugReport,
+                        onClick = {
+                            val log = runCatching { crashFile.readText() }.getOrDefault("")
+                            val url = Uri.Builder()
+                                .scheme("https")
+                                .authority("github.com")
+                                .appendPath("bitplugg")
+                                .appendPath("matesound")
+                                .appendPath("issues")
+                                .appendPath("new")
+                                .appendQueryParameter(
+                                    "title",
+                                    "[crash] matesound ${BuildConfig.VERSION_NAME}",
+                                )
+                                .appendQueryParameter(
+                                    "body",
+                                    "**Version:** ${BuildConfig.VERSION_NAME}\n\n" +
+                                        "**What happened:**\n\n\n" +
+                                        "**Crash log:**\n```\n${log.take(6_000)}\n```\n",
+                                )
+                                .build()
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, url))
+                            }
+                        },
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingsCard(
+                title = stringResource(R.string.settings_updates),
+                expanded = updatesExpanded,
+                onToggle = { updatesExpanded = !updatesExpanded },
+            ) {
+                val subtitle = when {
+                    update.checking -> stringResource(R.string.update_checking)
+                    update.info != null -> stringResource(
+                        R.string.update_available,
+                        update.info?.version.orEmpty(),
+                    )
+                    update.upToDate -> stringResource(R.string.update_up_to_date)
+                    update.error != null -> stringResource(
+                        R.string.update_error,
+                        update.error.orEmpty(),
+                    )
+                    else -> stringResource(R.string.update_current, BuildConfig.VERSION_NAME)
+                }
+                SettingsClickableRow(
+                    title = stringResource(R.string.check_updates),
+                    subtitle = subtitle,
+                    trailingIcon = Icons.Rounded.SystemUpdate,
+                    onClick = { container.updates.check(userTriggered = true) },
+                )
+                if (update.info != null) {
+                    UpdateCard(
+                        state = update,
+                        onDownload = { container.updates.download() },
+                        onInstall = { container.updates.install() },
+                        onOpenRelease = { container.updates.openReleasePage() },
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingsCard(
+                title = stringResource(R.string.settings_about),
+                expanded = aboutExpanded,
+                onToggle = { aboutExpanded = !aboutExpanded },
+            ) {
+                SettingsClickableRow(
+                    title = stringResource(R.string.version, BuildConfig.VERSION_NAME),
+                    subtitle = "matesound",
+                    onClick = {},
+                )
+                SettingsClickableRow(
+                    title = stringResource(R.string.source_code),
+                    subtitle = "github.com/bitplugg/matesound",
                     onClick = {
-                        val log = runCatching { crashFile.readText() }.getOrDefault("")
-                        val url = Uri.Builder()
-                            .scheme("https")
-                            .authority("github.com")
-                            .appendPath("bitplugg")
-                            .appendPath("matesound")
-                            .appendPath("issues")
-                            .appendPath("new")
-                            .appendQueryParameter(
-                                "title",
-                                "[crash] matesound ${BuildConfig.VERSION_NAME}",
-                            )
-                            .appendQueryParameter(
-                                "body",
-                                "**Version:** ${BuildConfig.VERSION_NAME}\n\n" +
-                                    "**What happened:**\n\n\n" +
-                                    "**Crash log:**\n```\n${log.take(6_000)}\n```\n",
-                            )
-                            .build()
                         runCatching {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, url))
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/bitplugg/matesound"),
+                                ),
+                            )
                         }
                     },
                 )
             }
-        }
-
-        item { SettingsSection(stringResource(R.string.settings_updates)) }
-        item {
-            val subtitle = when {
-                update.checking -> stringResource(R.string.update_checking)
-                update.info != null -> stringResource(
-                    R.string.update_available,
-                    update.info?.version.orEmpty(),
-                )
-                update.upToDate -> stringResource(R.string.update_up_to_date)
-                update.error != null -> stringResource(
-                    R.string.update_error,
-                    update.error.orEmpty(),
-                )
-                else -> stringResource(R.string.update_current, BuildConfig.VERSION_NAME)
-            }
-            SettingsClickableRow(
-                title = stringResource(R.string.check_updates),
-                subtitle = subtitle,
-                trailingIcon = Icons.Rounded.SystemUpdate,
-                onClick = { container.updates.check(userTriggered = true) },
-            )
-        }
-        if (update.info != null) {
-            item {
-                UpdateCard(
-                    state = update,
-                    onDownload = { container.updates.download() },
-                    onInstall = { container.updates.install() },
-                    onOpenRelease = { container.updates.openReleasePage() },
-                )
-            }
-        }
-
-        item { SettingsSection(stringResource(R.string.settings_about)) }
-        item {
-            SettingsClickableRow(
-                title = stringResource(R.string.version, BuildConfig.VERSION_NAME),
-                subtitle = "matesound",
-                onClick = {},
-            )
-        }
-        item {
-            SettingsClickableRow(
-                title = stringResource(R.string.source_code),
-                subtitle = "github.com/bitplugg/matesound",
-                onClick = {
-                    runCatching {
-                        context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/bitplugg/matesound"),
-                            ),
-                        )
-                    }
-                },
-            )
         }
         item { Spacer(Modifier.height(24.dp)) }
     }
@@ -483,15 +496,49 @@ private fun eqLabel(preset: EqualizerPreset): String = when (preset) {
 }
 
 @Composable
-private fun SettingsSection(title: String) {
-    HorizontalDivider(Modifier.padding(top = 12.dp))
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
-    )
+private fun SettingsCard(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Column(Modifier.padding(bottom = 6.dp)) {
+                    content()
+                }
+            }
+        }
+    }
 }
 
 @Composable
