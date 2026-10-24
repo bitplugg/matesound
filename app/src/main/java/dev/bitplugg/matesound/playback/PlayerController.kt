@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -77,8 +78,28 @@ class PlayerController(
 
     private data class PendingPlay(val tracks: List<ScTrack>, val index: Int)
 
+    private var preloadJob: Job? = null
+
     init {
         connect()
+        scope.launch {
+            state.collect { s ->
+                preloadNext(s)
+            }
+        }
+    }
+
+    private fun preloadNext(s: PlayerUiState) {
+        if (!s.isPlaying) return
+        if (preloadJob?.isActive == true) return
+        if (s.durationMs <= 0 || s.positionMs < s.durationMs * 0.7) return
+        val nextIndex = s.currentIndex + 1
+        if (nextIndex >= s.queue.size) return
+        val nextId = s.queue[nextIndex].id
+        if (nextId == 0L) return
+        preloadJob = scope.launch(Dispatchers.IO) {
+            runCatching { repository.streamUrlById(nextId, prefs.current().quality) }
+        }
     }
 
     private fun connect() {
