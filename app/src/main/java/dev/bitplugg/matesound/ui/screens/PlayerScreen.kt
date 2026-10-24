@@ -37,6 +37,11 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.media3.common.Player
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -218,7 +223,11 @@ fun PlayerScreen(onClose: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { player.toggleShuffle() }) {
+                val haptic = LocalHapticFeedback.current
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    player.toggleShuffle()
+                }) {
                     Icon(
                         Icons.Rounded.Shuffle,
                         contentDescription = null,
@@ -229,7 +238,10 @@ fun PlayerScreen(onClose: () -> Unit) {
                     Icon(Icons.Rounded.SkipPrevious, contentDescription = null, modifier = Modifier.size(36.dp))
                 }
                 FilledIconButton(
-                    onClick = { player.toggle() },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        player.toggle()
+                    },
                     modifier = Modifier.size(68.dp),
                 ) {
                     Icon(
@@ -241,11 +253,14 @@ fun PlayerScreen(onClose: () -> Unit) {
                 IconButton(onClick = { player.next() }, modifier = Modifier.size(52.dp)) {
                     Icon(Icons.Rounded.SkipNext, contentDescription = null, modifier = Modifier.size(36.dp))
                 }
-                IconButton(onClick = { player.cycleRepeat() }) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    player.cycleRepeat()
+                }) {
                     Icon(
-                        imageVector = if (state.repeatMode == 1) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                        imageVector = if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                         contentDescription = null,
-                        tint = if (state.repeatMode != 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (state.repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
